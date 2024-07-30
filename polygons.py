@@ -142,6 +142,9 @@ class Canvas(QLabel):
         painter.end()
         self.setPixmap(canvas)
 
+        if self.current_polygon is None:
+            self.calculate_intersections()
+
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         if self.dragging_point is None:
             return

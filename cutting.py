@@ -142,6 +142,9 @@ class Canvas(QLabel):
         painter.end()
         self.setPixmap(canvas)
 
+        if self.polygon_closed:
+            self.cut_polygon()
+
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         if self.dragging_point is None:
             return
@@ -370,6 +373,8 @@ class Canvas(QLabel):
 
         painter.end()
         self.setPixmap(canvas)
+
+        self.cut_polygon()
 
     @staticmethod
     def construct_painter(
