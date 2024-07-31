@@ -59,9 +59,9 @@ class Canvas(QLabel):
     second_polygon_color: QColor
 
     def __init__(
-            self,
-            *args,
-            **kwargs,
+        self,
+        *args,
+        **kwargs,
     ):
         super(Canvas, self).__init__(*args, **kwargs)
 
@@ -119,7 +119,7 @@ class Canvas(QLabel):
         def is_close(p: QPoint, q: QPoint, r: float) -> bool:
             d: QPoint = p - q
 
-            return d.x() ** 2 + d.y() ** 2 <= r ** 2
+            return d.x() ** 2 + d.y() ** 2 <= r**2
 
         if event.button() == Qt.MouseButton.LeftButton:
             closest_point: Optional[QPoint] = None
@@ -134,8 +134,8 @@ class Canvas(QLabel):
             elif self.current_polygon is not None:
                 self.add_point(event.pos(), painter)
         elif (
-                event.button() == Qt.MouseButton.RightButton
-                and self.current_polygon is not None
+            event.button() == Qt.MouseButton.RightButton
+            and self.current_polygon is not None
         ):
             self.close_polygon(painter)
 
@@ -279,7 +279,7 @@ class Canvas(QLabel):
 
 
 def construct_painter(
-        color: QColor, paint_device: QPaintDevice, width: int = 4
+    color: QColor, paint_device: QPaintDevice, width: int = 4
 ) -> QPainter:
     painter = QPainter(paint_device)
 

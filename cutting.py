@@ -67,9 +67,9 @@ class Canvas(QLabel):
     polygon_color: QColor
 
     def __init__(
-            self,
-            *args,
-            **kwargs,
+        self,
+        *args,
+        **kwargs,
     ):
         super(Canvas, self).__init__(*args, **kwargs)
 
@@ -116,7 +116,7 @@ class Canvas(QLabel):
         def is_close(p: QPoint, q: QPoint, r: float) -> bool:
             d: QPoint = p - q
 
-            return d.x() ** 2 + d.y() ** 2 <= r ** 2
+            return d.x() ** 2 + d.y() ** 2 <= r**2
 
         if event.button() == Qt.MouseButton.LeftButton:
             closest_point: Optional[QPoint] = None
@@ -237,7 +237,7 @@ class Canvas(QLabel):
         diagonals: List[Tuple[QPoint, QPoint]] = list()
 
         for first_index, first_point in enumerate(self.polygon):
-            for second_point in self.polygon[first_index + 2:]:
+            for second_point in self.polygon[first_index + 2 :]:
                 if {first_point, second_point} == {self.polygon[0], self.polygon[-1]}:
                     continue
 
@@ -256,7 +256,7 @@ class Canvas(QLabel):
         self.setPixmap(canvas)
 
     def check_for_intersections(
-            self, new_point: QPoint, start_point: QPoint = None
+        self, new_point: QPoint, start_point: QPoint = None
     ) -> bool:
         if len(self.polygon) < 3:
             return False
@@ -313,7 +313,7 @@ class Canvas(QLabel):
         def is_close(p: QPoint, q: QPoint, r: float) -> bool:
             d: QPoint = p - q
 
-            return d.x() ** 2 + d.y() ** 2 <= r ** 2
+            return d.x() ** 2 + d.y() ** 2 <= r**2
 
         points: List[QPoint] = list()
         count: int = 0
@@ -362,10 +362,10 @@ class Canvas(QLabel):
         below_line_points.sort(key=lambda p: p.x(), reverse=True)
 
         for point in (
-                leftmost_point,
-                *above_line_points,
-                rightmost_point,
-                *below_line_points,
+            leftmost_point,
+            *above_line_points,
+            rightmost_point,
+            *below_line_points,
         ):
             self.add_point(point, painter)
 
@@ -378,7 +378,7 @@ class Canvas(QLabel):
 
     @staticmethod
     def construct_painter(
-            color: QColor, paint_device: QPaintDevice, width: int = 4
+        color: QColor, paint_device: QPaintDevice, width: int = 4
     ) -> QPainter:
         painter = QPainter(paint_device)
 

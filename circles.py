@@ -79,7 +79,7 @@ class CircularMove:
 
         self._angular_velocity = 2 * math.pi / period
         self._velocity = self._angular_velocity * self._radius
-        self._acceleration = self._angular_velocity ** 2 * self._radius
+        self._acceleration = self._angular_velocity**2 * self._radius
 
     def get_angular_velocity(self) -> float:
         return self._angular_velocity
@@ -107,7 +107,7 @@ class Hypocycloid:
         return self._outer_circle.get_radius() / self._inner_circle.get_radius()
 
     def recalculate_hypocycloid_point(
-            self, angular_velocity: float, time: float
+        self, angular_velocity: float, time: float
     ) -> None:
         self._hypocycloid_point = QPoint(
             int(
@@ -132,12 +132,12 @@ class Canvas(QLabel):
     background_color: tuple[int, int, int] = (255, 240, 240)
 
     def __init__(
-            self,
-            outer_circle: Circle,
-            inner_circle: Circle,
-            hypocycloid: Hypocycloid,
-            *args,
-            **kwargs,
+        self,
+        outer_circle: Circle,
+        inner_circle: Circle,
+        hypocycloid: Hypocycloid,
+        *args,
+        **kwargs,
     ):
         super(Canvas, self).__init__(*args, **kwargs)
 
@@ -231,7 +231,7 @@ class Canvas(QLabel):
 
     @staticmethod
     def get_absolute_pos(
-            relative_pos: QPoint, subject_size: tuple[float, float]
+        relative_pos: QPoint, subject_size: tuple[float, float]
     ) -> QPoint:
         return QPoint(
             relative_pos.x() + int((Canvas.size[0] - subject_size[0]) / 2),
@@ -240,7 +240,7 @@ class Canvas(QLabel):
 
     @staticmethod
     def construct_painter(
-            color: QColor, paint_device: QPaintDevice, width: int = 4
+        color: QColor, paint_device: QPaintDevice, width: int = 4
     ) -> QPainter:
         painter = QPainter(paint_device)
 
