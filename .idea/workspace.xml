@@ -4,12 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="1f8cd0da-ca49-473f-8150-db68623c02d3" name="Changes" comment="🛠 Рефакторинг&#10;* применён Black;&#10;* исправление мелких недочётов.">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/circles.py" beforeDir="false" afterPath="$PROJECT_DIR$/circles.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cutting.py" beforeDir="false" afterPath="$PROJECT_DIR$/cutting.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/polygons.py" beforeDir="false" afterPath="$PROJECT_DIR$/polygons.py" afterDir="false" />
-    </list>
+    <list default="true" id="1f8cd0da-ca49-473f-8150-db68623c02d3" name="Changes" comment="✨ Реализован класс Polygon&#10;* все действия с математикой полигона перенесены в него;&#10;* в классе Canvas осталась лишь реализация отрисовки полигона." />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -134,7 +129,15 @@
       <option name="project" value="LOCAL" />
       <updated>1722417539648</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="✨ Реализован класс Polygon&#10;* все действия с математикой полигона перенесены в него;&#10;* в классе Canvas осталась лишь реализация отрисовки полигона.">
+      <option name="closed" value="true" />
+      <created>1722440148178</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1722440148178</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -151,6 +154,7 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value=" Автоматизация&#10;* точки пересечения полигонов в задаче 1.21 устанавливаются как только оба из них закрыты;&#10;* диагонали полигона в задаче 3.21 определяются автоматически при его закрытии." />
     <MESSAGE value=" Рефакторинг&#10;* применён Black;&#10;* исправление мелких недочётов." />
-    <option name="LAST_COMMIT_MESSAGE" value=" Рефакторинг&#10;* применён Black;&#10;* исправление мелких недочётов." />
+    <MESSAGE value="✨ Реализован класс Polygon&#10;* все действия с математикой полигона перенесены в него;&#10;* в классе Canvas осталась лишь реализация отрисовки полигона." />
+    <option name="LAST_COMMIT_MESSAGE" value="✨ Реализован класс Polygon&#10;* все действия с математикой полигона перенесены в него;&#10;* в классе Canvas осталась лишь реализация отрисовки полигона." />
   </component>
 </project>
