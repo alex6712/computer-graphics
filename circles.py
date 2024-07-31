@@ -129,7 +129,7 @@ class Hypocycloid:
 
 class Canvas(QLabel):
     size: tuple[int, int] = (720, 480)
-    background_color: tuple[int, int, int] = (255, 240, 240)
+    _background_color: tuple[int, int, int] = (255, 240, 240)
 
     def __init__(
         self,
@@ -143,13 +143,13 @@ class Canvas(QLabel):
 
         self.setFixedSize(*Canvas.size)
 
-        canvas: QPixmap = QPixmap(*Canvas.size)
-        canvas.fill(QColor(*Canvas.background_color))
+        _canvas: QPixmap = QPixmap(*Canvas.size)
+        _canvas.fill(QColor(*Canvas._background_color))
 
         self.hypocycloid_canvas: QPixmap = QPixmap(*Canvas.size)
         self.hypocycloid_canvas.fill(QColor(0, 0, 0, 0))
 
-        self.setPixmap(canvas)
+        self.setPixmap(_canvas)
 
         self.outer_circle: Circle = outer_circle
         self.inner_circle: Circle = inner_circle
@@ -161,7 +161,7 @@ class Canvas(QLabel):
 
     def clear(self):
         canvas = self.pixmap()
-        canvas.fill(QColor(*Canvas.background_color))
+        canvas.fill(QColor(*Canvas._background_color))
         self.setPixmap(canvas)
 
     def redraw_timeout(self):
@@ -259,7 +259,7 @@ class InfoDialog(QDialog):
         button = QDialogButtonBox.StandardButton.Ok
 
         self.buttonBox = QDialogButtonBox(button)
-        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.accepted.connect(self.accept)  # noqa
 
         self.layout = QVBoxLayout()
 
@@ -355,7 +355,7 @@ class Circles(QMainWindow):
         self.size_slider.setMaximum(200)
         self.size_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.size_slider.setTickInterval(10)
-        self.size_slider.valueChanged.connect(self.size_changed)
+        self.size_slider.valueChanged.connect(self.size_changed)  # noqa
 
         self.size_slider_label = QLabel(
             f"Радиус внутренней окружности: {self.size_slider.value()}px"
@@ -370,7 +370,7 @@ class Circles(QMainWindow):
         self.period_slider.setMaximum(10)
         self.period_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.period_slider.setTickInterval(1)
-        self.period_slider.valueChanged.connect(self.period_changed)
+        self.period_slider.valueChanged.connect(self.period_changed)  # noqa
 
         self.period_slider_label = QLabel(
             f"Период вращения внутренней окружности: {self.period_slider.value()}с"
@@ -390,15 +390,15 @@ class Circles(QMainWindow):
         right_widgets.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.start_button = QPushButton("Запустить")
-        self.start_button.clicked.connect(self.start_timer)
+        self.start_button.clicked.connect(self.start_timer)  # noqa
         self.start_button.setStyleSheet("QPushButton {margin: auto; padding: 5px;}")
 
         self.stop_button = QPushButton("Остановить")
-        self.stop_button.clicked.connect(self.stop_timer)
+        self.stop_button.clicked.connect(self.stop_timer)  # noqa
         self.stop_button.setStyleSheet("QPushButton {margin: auto; padding: 5px;}")
 
         self.info_button = QPushButton("Справка")
-        self.info_button.clicked.connect(self.show_info)
+        self.info_button.clicked.connect(self.show_info)  # noqa
         self.info_button.setStyleSheet("QPushButton {margin: auto; padding: 5px;}")
 
         self.stop_button.setEnabled(False)
@@ -416,11 +416,13 @@ class Circles(QMainWindow):
         bottom_widgets.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.line_check_box = QCheckBox("Показывать гипоциклоиду")
-        self.line_check_box.clicked.connect(self.line_toggle)
+        self.line_check_box.clicked.connect(self.line_toggle)  # noqa
 
         self.motion_direction_clockwise: bool = False
         self.motion_direction_check_box = QCheckBox("Движение по часовой стрелке")
-        self.motion_direction_check_box.clicked.connect(self.motion_direction_changed)
+        self.motion_direction_check_box.clicked.connect(  # noqa
+            self.motion_direction_changed
+        )
 
         bottom_widgets.addWidget(self.line_check_box)
         bottom_widgets.addWidget(self.motion_direction_check_box)
@@ -435,7 +437,7 @@ class Circles(QMainWindow):
 
         self.timer = QTimer(self)
 
-        self.timer.timeout.connect(self.repaint_timeout)
+        self.timer.timeout.connect(self.repaint_timeout)  # noqa
 
     def start_timer(self):
         self.timer.start(int(1000 / 240))

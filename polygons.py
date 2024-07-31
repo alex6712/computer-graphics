@@ -39,7 +39,7 @@ class Dialog(QDialog):
         button = QDialogButtonBox.StandardButton.Ok
 
         self.buttonBox = QDialogButtonBox(button)
-        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.accepted.connect(self.accept)  # noqa
 
         self.layout = QVBoxLayout()
 
@@ -308,13 +308,13 @@ class Polygons(QMainWindow):
         right_widgets.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         clear_button = QPushButton("Очистить холст")
-        clear_button.clicked.connect(self.canvas.clear)
+        clear_button.clicked.connect(self.canvas.clear)  # noqa
         clear_button.setStyleSheet(
             "QPushButton {margin: auto; padding: 5px; font-size: 24px;}"
         )
 
         info_button = QPushButton("Справка")
-        info_button.clicked.connect(self.info_clicked)
+        info_button.clicked.connect(self.info_clicked)  # noqa
         info_button.setStyleSheet(
             "QPushButton {margin: auto; padding: 5px; font-size: 24px;}"
         )

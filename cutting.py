@@ -1,5 +1,6 @@
+import math
+from enum import Enum
 from random import randint
-from typing import Tuple, List, Optional, TypeVar
 
 from PyQt6.QtCore import QPoint, Qt
 from PyQt6.QtGui import (
@@ -25,8 +26,6 @@ from PyQt6.QtWidgets import (
 )
 from shapely.geometry import LineString
 
-QPolygon = TypeVar("QPolygon", bound=List[QPoint])
-
 
 class _QPoint(QPoint):
     def __init__(self, *args, **kwargs) -> None:
@@ -39,6 +38,33 @@ class _QPoint(QPoint):
 QPoint = _QPoint
 
 
+class VertexType(Enum):
+    START = "start"
+    SPLIT = "split"
+    END = "end"
+    MERGE = "merge"
+    REGULAR = "regular"
+
+
+class Vertex(QPoint):
+    type_: VertexType
+
+    def __init__(self, index: int, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        self._index: int = index
+
+    def index(self) -> int:
+        return self._index
+
+    @staticmethod
+    def from_point(index: int, point: QPoint) -> "Vertex":
+        return Vertex(index, point)
+
+    def __repr__(self) -> str:
+        return f"Vertex <index: {self._index}, type_: {self.type_}, pos: {self.to_tuple()}>"
+
+
 class Dialog(QDialog):
     def __init__(self, title: str = "Ошибка", message: str = "Непредвиденная ошибка!"):
         super().__init__()
@@ -48,7 +74,7 @@ class Dialog(QDialog):
         button = QDialogButtonBox.StandardButton.Ok
 
         self.buttonBox = QDialogButtonBox(button)
-        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.accepted.connect(self.accept)  # noqa
 
         self.layout = QVBoxLayout()
 
@@ -60,58 +86,245 @@ class Dialog(QDialog):
         self.setLayout(self.layout)
 
 
-class Canvas(QLabel):
-    size: Tuple[int, int] = (720, 480)
-    background_color: Tuple[int, int, int] = (42, 42, 42)
+class Polygon:
+    def __init__(self, color: QColor = QColor("black")) -> None:
+        self._vertexes: list[Vertex] = list()
 
-    polygon_color: QColor
+        self._color: QColor = color
+
+        self._closed: bool = False
+
+    def get_color(self) -> QColor:
+        return self._color
+
+    def _set_color(self, color: QColor) -> None:
+        self._color = color
+
+    def set_random_color(self) -> None:
+        self._set_color(QColor(randint(63, 220), randint(63, 220), randint(63, 220)))
+
+    def add_vertex(self, point: QPoint) -> None:
+        vertex: Vertex = Vertex.from_point(
+            self.vertex_count(),
+            point,
+        )
+        self._vertexes.append(vertex)
+
+    def vertex_count(self) -> int:
+        return len(self._vertexes)
+
+    def peek_vertexes(self) -> list[Vertex]:
+        return self._vertexes.copy()
+
+    def peek_vertex(self, index: int) -> Vertex:
+        return self._vertexes[index]
+
+    def peek_last_vertex(self) -> Vertex:
+        return self.peek_vertex(-1)
+
+    def close(self) -> None:
+        self._closed = True
+
+    def is_closed(self) -> bool:
+        return self._closed
+
+    def intersects(self, start_point: QPoint, end_point: QPoint) -> bool:
+        if len(self._vertexes) < 2:
+            return False
+
+        edges: list[LineString] = list()
+
+        previous_vertex: QPoint = self._vertexes[0]
+        for current_vertex in self._vertexes[1:]:
+            edges.append(
+                LineString([previous_vertex.to_tuple(), current_vertex.to_tuple()])
+            )
+
+            previous_vertex = current_vertex
+
+        line: LineString = LineString([start_point.to_tuple(), end_point.to_tuple()])
+
+        for edge in edges:
+            if intersection := line.intersection(edge):
+                point: QPoint = QPoint(int(intersection.x), int(intersection.y))
+
+                if point in self._vertexes:
+                    continue
+
+                return True
+
+        return False
+
+    def triangulate(self) -> None:
+        vertex_queue: list[Vertex] = sorted(
+            self._vertexes, key=lambda _vertex: (_vertex.y(), -_vertex.x()), reverse=True
+        )
+
+        while len(vertex_queue) > 0:
+            current_vertex: Vertex = vertex_queue.pop(0)
+
+            current_vertex.type_ = self._type_of_vertex(current_vertex)
+
+    def _type_of_vertex(self, current_vertex: Vertex) -> VertexType:
+        current_index: int = current_vertex.index()
+
+        next_vertex: Vertex = self._vertexes[
+            (current_index + 1) % self.vertex_count()
+        ]
+        previous_vertex: Vertex = self._vertexes[current_index - 1]
+
+        def is_higher(v1: Vertex, v2: Vertex) -> bool:
+            if v1.y() == v2.y():
+                return v1.x() < v2.x()
+
+            return v1.y() < v2.y()
+
+        is_higher_than_right: bool = is_higher(current_vertex, next_vertex)
+        is_higher_than_left: bool = is_higher(current_vertex, previous_vertex)
+
+        vector_to_next: list[int] = [
+            next_vertex.x() - current_vertex.x(),
+            next_vertex.y() - current_vertex.y(),
+        ]
+        vector_to_previous: list[int] = [
+            previous_vertex.x() - current_vertex.x(),
+            previous_vertex.y() - current_vertex.y(),
+        ]
+
+        angle: float = math.acos(
+            (vector_to_next[0] * vector_to_previous[0] + vector_to_next[1] * vector_to_previous[1])
+            / (
+                math.sqrt(vector_to_next[0] ** 2 + vector_to_next[1] ** 2)
+                * math.sqrt(vector_to_previous[0] ** 2 + vector_to_previous[1] ** 2)
+            )
+        )
+        angle = math.degrees(angle)
+
+        if is_higher_than_right and is_higher_than_left:
+            if angle > 180:
+                return VertexType.SPLIT
+            else:
+                return VertexType.START
+        elif not (is_higher_than_right or is_higher_than_left):
+            if angle > 180:
+                return VertexType.MERGE
+            else:
+                return VertexType.END
+
+        return VertexType.REGULAR
+
+    @staticmethod
+    def random_polygon() -> "Polygon":
+        vertex_number: int = randint(4, 8)
+
+        canvas_width, canvas_height = Canvas.get_size()
+
+        vertexes: list[QPoint] = list()
+        while len(vertexes) < vertex_number:
+            vertexes.append(QPoint(randint(0, canvas_width), randint(0, canvas_height)))
+
+        leftmost_vertex: QPoint = vertexes[0]
+        rightmost_vertex: QPoint = vertexes[0]
+
+        for vertex in vertexes[1:]:
+            if vertex.x() < leftmost_vertex.x():
+                leftmost_vertex = vertex
+
+            if vertex.x() > rightmost_vertex.x():
+                rightmost_vertex = vertex
+
+        above_line_vertexes: list[QPoint] = list()
+        below_line_vertexes: list[QPoint] = list()
+
+        vertexes.remove(leftmost_vertex)
+        vertexes.remove(rightmost_vertex)
+
+        for vertex in vertexes:
+            vector_product: int = int(
+                (vertex.x() - leftmost_vertex.x())
+                * (rightmost_vertex.y() - leftmost_vertex.y())
+                - (vertex.y() - leftmost_vertex.y())
+                * (rightmost_vertex.x() - leftmost_vertex.x())
+            )
+
+            if vector_product > 0:
+                above_line_vertexes.append(vertex)
+            else:
+                below_line_vertexes.append(vertex)
+
+        above_line_vertexes.sort(key=lambda p: p.x())
+        below_line_vertexes.sort(key=lambda p: p.x(), reverse=True)
+
+        polygon: Polygon = Polygon()
+        polygon.set_random_color()
+
+        for vertex in (
+            leftmost_vertex,
+            *above_line_vertexes,
+            rightmost_vertex,
+            *below_line_vertexes,
+        ):
+            polygon.add_vertex(vertex)
+
+        polygon.close()
+
+        return polygon
+
+
+class Canvas(QLabel):
+    _size: tuple[int, int] = (720, 480)
+    _background_color: tuple[int, int, int] = (42, 42, 42)
 
     def __init__(
         self,
+        raw_polygon: Polygon,
         *args,
         **kwargs,
     ):
         super(Canvas, self).__init__(*args, **kwargs)
 
-        self.setFixedSize(*Canvas.size)
+        self.setFixedSize(*Canvas._size)
 
-        canvas: QPixmap = QPixmap(*Canvas.size)
-        canvas.fill(QColor(*Canvas.background_color))
+        _canvas: QPixmap = QPixmap(*Canvas._size)
+        _canvas.fill(QColor(*Canvas._background_color))
 
-        self.setPixmap(canvas)
-
-        self.set_random_color()
+        self.setPixmap(_canvas)
 
         self.place_grid()
 
-        self.previous_point: Optional[QPoint] = None
-        self.dragging_point: Optional[QPoint] = None
+        self._polygon: Polygon = raw_polygon
+        self._triangles: list[Polygon] = list()
 
-        self.polygon: QPolygon = list()
+        self._dragging_vertex: QPoint | None = None
 
-        self.polygon_closed: bool = False
+    @classmethod
+    def get_size(cls) -> tuple[int, int]:
+        return cls._size
+
+    def replace_polygon(self, new_polygon: Polygon) -> None:
+        self._polygon = new_polygon
+
+        self.redraw_canvas()
+
+        if self._polygon.is_closed():
+            self.triangulate_polygon()
 
     def place_grid(self, grid_step: int = 30) -> None:
         canvas = self.pixmap()
         painter = Canvas.construct_painter(QColor(100, 100, 100, alpha=40), canvas, 2)
 
-        for i in range(grid_step, Canvas.size[1], grid_step):
-            painter.drawLine(QPoint(0, i), QPoint(Canvas.size[0], i))
+        for i in range(grid_step, Canvas._size[1], grid_step):
+            painter.drawLine(QPoint(0, i), QPoint(Canvas._size[0], i))
 
-        for i in range(grid_step, Canvas.size[0], grid_step):
-            painter.drawLine(QPoint(i, 0), QPoint(i, Canvas.size[1]))
+        for i in range(grid_step, Canvas._size[0], grid_step):
+            painter.drawLine(QPoint(i, 0), QPoint(i, Canvas._size[1]))
 
         painter.end()
         self.setPixmap(canvas)
 
-    def set_random_color(self) -> None:
-        self.polygon_color = QColor(
-            randint(63, 220), randint(63, 220), randint(63, 220)
-        )
-
     def mousePressEvent(self, event: QMouseEvent) -> None:
         canvas: QPixmap = self.pixmap()
-        painter: QPainter = Canvas.construct_painter(self.polygon_color, canvas)
+        painter: QPainter = Canvas.construct_painter(self._polygon.get_color(), canvas)
 
         def is_close(p: QPoint, q: QPoint, r: float) -> bool:
             d: QPoint = p - q
@@ -119,73 +332,75 @@ class Canvas(QLabel):
             return d.x() ** 2 + d.y() ** 2 <= r**2
 
         if event.button() == Qt.MouseButton.LeftButton:
-            closest_point: Optional[QPoint] = None
-            for previous_point in self.polygon:
+            closest_point: QPoint | None = None
+            for previous_point in self._polygon.peek_vertexes():
                 if is_close(event.pos(), previous_point, 5):
                     closest_point = previous_point
 
                     break
 
             if closest_point is not None:
-                self.set_drag_point(closest_point)
+                self.set_dragging_vertex(closest_point)
             else:
-                if self.polygon_closed:
+                if self._polygon.is_closed():
                     Dialog(
                         "Полигон закрыт",
                         "Полигон закрыт: невозможно поставить ещё одну точку.",
                     ).exec()
                 else:
-                    self.add_point(QPoint(event.pos()), painter)
+                    self.place_point(QPoint(event.pos()), painter)
         elif event.button() == Qt.MouseButton.RightButton:
             self.close_polygon(painter)
 
         painter.end()
         self.setPixmap(canvas)
 
-        if self.polygon_closed:
-            self.cut_polygon()
+        if self._polygon.is_closed():
+            self.triangulate_polygon()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        if self.dragging_point is None:
+        if self._dragging_vertex is None:
             return
 
-        canvas = self.pixmap()
-        canvas.fill(QColor(*Canvas.background_color))
-        self.setPixmap(canvas)
-        self.place_grid()
+        for vertex in self._polygon.peek_vertexes():
+            if vertex is self._dragging_vertex:
+                vertex.setX(event.pos().x())
+                vertex.setY(event.pos().y())
 
-        self.redraw_polygon(self.polygon, event.pos())
+        self.redraw_canvas()
 
-        self.cut_polygon()
+        if self._polygon.is_closed():
+            self.triangulate_polygon()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        if self.dragging_point is not None:
-            self.dragging_point = None
+        if self._dragging_vertex is not None:
+            self._dragging_vertex = None
 
-    def redraw_polygon(self, polygon: QPolygon, new_point: QPoint) -> None:
+    def redraw_canvas(self) -> None:
+        self.clear_canvas()
+
         canvas = self.pixmap()
-        painter: QPainter = Canvas.construct_painter(self.polygon_color, canvas)
+        painter: QPainter = Canvas.construct_painter(self._polygon.get_color(), canvas)
 
-        previous_point: Optional[QPoint] = None
-        for index, point in enumerate(polygon):
-            if point is self.dragging_point:
-                point.setX(new_point.x())
-                point.setY(new_point.y())
+        previous_vertex: QPoint | None = None
+        for vertex in self._polygon.peek_vertexes():
+            painter.drawEllipse(vertex, 2, 2)
 
-            painter.drawEllipse(point, 2, 2)
-            if previous_point is not None:
-                painter.drawLine(previous_point, point)
+            if previous_vertex is not None:
+                painter.drawLine(previous_vertex, vertex)
 
-            previous_point = point
+            previous_vertex = vertex
 
-        if self.polygon_closed:
-            painter.drawLine(previous_point, polygon[0])
+        if self._polygon.is_closed():
+            painter.drawLine(previous_vertex, self._polygon.peek_vertexes()[0])
 
         painter.end()
         self.setPixmap(canvas)
 
-    def add_point(self, point: QPoint, painter: QPainter) -> None:
-        if self.check_for_intersections(point):
+    def place_point(self, point: QPoint, painter: QPainter) -> None:
+        if self._polygon.vertex_count() > 0 and self._polygon.intersects(
+            point, self._polygon.peek_vertex(-1)
+        ):
             Dialog(
                 "Проверка на самопересечения",
                 "Точка, которую Вы хотите поставить, приведёт к самопересечению многоугольника.",
@@ -195,14 +410,20 @@ class Canvas(QLabel):
 
         painter.drawEllipse(point, 2, 2)
 
-        if self.previous_point is not None:
-            painter.drawLine(self.previous_point, point)
+        if self._polygon.vertex_count() > 0:
+            painter.drawLine(self._polygon.peek_last_vertex(), point)
 
-        self.polygon.append(point)
-        self.previous_point = point
+        self._polygon.add_vertex(point)
 
     def close_polygon(self, painter: QPainter) -> None:
-        if self.polygon_closed:
+        if self._polygon.vertex_count() < 4:
+            Dialog(
+                message="Недостаточно точек для закрытия полигона. Их должно быть не менее 4."
+            ).exec()
+
+            return
+
+        if self._polygon.is_closed():
             Dialog(
                 "Полигон закрыт",
                 "Невозможно закрыть полигон: полигон уже закрыт!",
@@ -210,7 +431,9 @@ class Canvas(QLabel):
 
             return
 
-        if self.check_for_intersections(self.polygon[0]):
+        if self._polygon.intersects(
+            self._polygon.peek_last_vertex(), self._polygon.peek_vertex(0)
+        ):
             Dialog(
                 "Проверка на самопересечения",
                 "Закрытие полигона сейчас приведёт к самопересечению. "
@@ -219,162 +442,56 @@ class Canvas(QLabel):
 
             return
 
-        if len(self.polygon) >= 4:
-            first_point: QPoint = QPoint(self.polygon[0])
+        painter.drawLine(self._polygon.peek_last_vertex(), self._polygon.peek_vertex(0))
 
-            painter.drawLine(first_point, self.previous_point)
+        self._polygon.close()
 
-            self.polygon_closed = True
-        else:
-            Dialog(
-                message="Недостаточно точек для закрытия полигона. Их должно быть не менее 4."
-            ).exec()
+    def set_dragging_vertex(self, vertex: QPoint) -> None:
+        self._dragging_vertex = vertex
 
-    def set_drag_point(self, point: QPoint) -> None:
-        self.dragging_point = point
+    def triangulate_polygon(self) -> None:
+        self._polygon.triangulate()
 
-    def cut_polygon(self) -> None:
-        diagonals: List[Tuple[QPoint, QPoint]] = list()
+        # diagonals: list[tuple[QPoint, QPoint]] = list()
+        #
+        # for first_index, first_point in enumerate(self.polygon):
+        #     for second_point in self.polygon[first_index + 2 :]:
+        #         if {first_point, second_point} == {self.polygon[0], self.polygon[-1]}:
+        #             continue
+        #
+        #         if self.check_for_intersections(first_point, second_point):
+        #             continue
+        #
+        #         diagonals.append((first_point, second_point))
 
-        for first_index, first_point in enumerate(self.polygon):
-            for second_point in self.polygon[first_index + 2 :]:
-                if {first_point, second_point} == {self.polygon[0], self.polygon[-1]}:
-                    continue
+        def place_point(color: QColor, point: QPoint) -> None:
+            canvas_ = self.pixmap()
+            painter_ = Canvas.construct_painter(color, canvas_, 10)
 
-                if self.check_for_intersections(first_point, second_point):
-                    continue
+            painter_.drawPoint(point)
 
-                diagonals.append((first_point, second_point))
+            painter_.end()
+            self.setPixmap(canvas_)
 
+        for vertex in self._polygon.peek_vertexes():
+            match vertex.type_:
+                case VertexType.START:
+                    place_point(QColor("yellow"), vertex)
+                case VertexType.END:
+                    place_point(QColor("green"), vertex)
+                case VertexType.SPLIT:
+                    place_point(QColor("red"), vertex)
+                case VertexType.MERGE:
+                    place_point(QColor("blue"), vertex)
+                case VertexType.REGULAR:
+                    place_point(QColor("black"), vertex)
+
+    def clear_canvas(self) -> None:
         canvas = self.pixmap()
-        painter = Canvas.construct_painter(QColor("red"), canvas)
-
-        for diagonal in diagonals:
-            painter.drawLine(diagonal[0], diagonal[1])
-
-        painter.end()
-        self.setPixmap(canvas)
-
-    def check_for_intersections(
-        self, new_point: QPoint, start_point: QPoint = None
-    ) -> bool:
-        if len(self.polygon) < 3:
-            return False
-
-        edges: List[LineString] = list()
-
-        previous_point: Tuple[int, int] = self.polygon[0].to_tuple()
-
-        for point in self.polygon[1:]:
-            current_point: Tuple[int, int] = point.to_tuple()
-
-            edges.append(LineString([previous_point, current_point]))
-
-            previous_point = current_point
-
-        if start_point is not None:
-            previous_point = start_point.to_tuple()
-
-        new_edge: LineString = LineString([previous_point, new_point.to_tuple()])
-
-        for edge in edges:
-            if intersection := new_edge.intersection(edge):
-                point: QPoint = QPoint(int(intersection.x), int(intersection.y))
-
-                if point in self.polygon:
-                    continue
-
-                return True
-
-        return False
-
-    def clear(self) -> None:
-        canvas = self.pixmap()
-        canvas.fill(QColor(*Canvas.background_color))
+        canvas.fill(QColor(*Canvas._background_color))
         self.setPixmap(canvas)
 
         self.place_grid()
-
-        self.polygon.clear()
-
-        self.previous_point = None
-        self.polygon_closed = False
-
-        self.set_random_color()
-
-    def random_polygon(self) -> None:
-        self.clear()
-
-        canvas: QPixmap = self.pixmap()
-        painter: QPainter = Canvas.construct_painter(self.polygon_color, canvas)
-
-        vertex_number: int = randint(4, 8)
-
-        def is_close(p: QPoint, q: QPoint, r: float) -> bool:
-            d: QPoint = p - q
-
-            return d.x() ** 2 + d.y() ** 2 <= r**2
-
-        points: List[QPoint] = list()
-        count: int = 0
-        while count < vertex_number:
-            new_point: QPoint = QPoint(
-                randint(0, Canvas.size[0]), randint(0, Canvas.size[1])
-            )
-
-            for point in points:
-                if is_close(new_point, point, 10):
-                    break
-            else:
-                points.append(new_point)
-                count += 1
-
-        leftmost_point: QPoint = points[0]
-        rightmost_point: QPoint = points[0]
-
-        for point in points[1:]:
-            if point.x() < leftmost_point.x():
-                leftmost_point = point
-
-            if point.x() > rightmost_point.x():
-                rightmost_point = point
-
-        above_line_points: List[QPoint] = list()
-        below_line_points: List[QPoint] = list()
-
-        points.remove(leftmost_point)
-        points.remove(rightmost_point)
-
-        for point in points:
-            vector_product: int = int(
-                (point.x() - leftmost_point.x())
-                * (rightmost_point.y() - leftmost_point.y())
-                - (point.y() - leftmost_point.y())
-                * (rightmost_point.x() - leftmost_point.x())
-            )
-
-            if vector_product < 0:
-                above_line_points.append(point)
-            else:
-                below_line_points.append(point)
-
-        above_line_points.sort(key=lambda p: p.x())
-        below_line_points.sort(key=lambda p: p.x(), reverse=True)
-
-        for point in (
-            leftmost_point,
-            *above_line_points,
-            rightmost_point,
-            *below_line_points,
-        ):
-            self.add_point(point, painter)
-
-        self.close_polygon(painter)
-
-        painter.end()
-        self.setPixmap(canvas)
-
-        self.cut_polygon()
 
     @staticmethod
     def construct_painter(
@@ -398,7 +515,7 @@ class InfoDialog(QDialog):
         button = QDialogButtonBox.StandardButton.Ok
 
         self.buttonBox = QDialogButtonBox(button)
-        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.accepted.connect(self.accept)  # noqa
 
         self.layout = QVBoxLayout()
 
@@ -444,20 +561,23 @@ class Cutting(QMainWindow):
 
         central_widgets = QHBoxLayout()
 
-        self.canvas = Canvas()
+        polygon: Polygon = Polygon()
+        polygon.set_random_color()
+
+        self.canvas = Canvas(polygon)
 
         right_widgets = QVBoxLayout()
         right_widgets.setSpacing(20)
         right_widgets.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         clear_button = QPushButton("Очистить холст")
-        clear_button.clicked.connect(self.canvas.clear)
+        clear_button.clicked.connect(self.clear_canvas)  # noqa
         clear_button.setStyleSheet(
             "QPushButton {margin: auto; padding: 5px; font-size: 24px;}"
         )
 
         info_button = QPushButton("Справка")
-        info_button.clicked.connect(self.info_clicked)
+        info_button.clicked.connect(self.info_clicked)  # noqa
         info_button.setStyleSheet(
             "QPushButton {margin: auto; padding: 5px; font-size: 24px;}"
         )
@@ -473,7 +593,7 @@ class Cutting(QMainWindow):
         bottom_widgets.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         random_button = QPushButton("Случайный полигон")
-        random_button.clicked.connect(self.canvas.random_polygon)
+        random_button.clicked.connect(self.place_random_polygon)  # noqa
         random_button.setStyleSheet(
             "QPushButton {margin: auto; padding: 5px; font-size: 24px;}"
         )
@@ -491,6 +611,19 @@ class Cutting(QMainWindow):
     @staticmethod
     def info_clicked() -> None:
         InfoDialog().exec()
+
+    def clear_canvas(self) -> None:
+        self.canvas.clear_canvas()
+
+        polygon: Polygon = Polygon()
+        polygon.set_random_color()
+
+        self.canvas.replace_polygon(polygon)
+
+    def place_random_polygon(self) -> None:
+        random_polygon: Polygon = Polygon.random_polygon()
+
+        self.canvas.replace_polygon(random_polygon)
 
 
 if __name__ == "__main__":
