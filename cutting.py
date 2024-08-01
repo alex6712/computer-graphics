@@ -1,6 +1,7 @@
 import math
 from enum import Enum
 from random import randint
+from typing import Iterable
 
 from PyQt6.QtCore import QPoint, Qt
 from PyQt6.QtGui import (
@@ -177,6 +178,10 @@ class SelfIntersectionException(Exception):
     pass
 
 
+class PolygonIsNotClosedException(Exception):
+    pass
+
+
 class PolygonClosedException(Exception):
     pass
 
@@ -209,6 +214,9 @@ class Polygon:
         self._color = QColor(randint(63, 220), randint(63, 220), randint(63, 220))
 
     def add_vertex(self, point: QPoint) -> None:
+        if self.is_closed():
+            raise PolygonClosedException()
+
         new_vertex: Vertex = Vertex.from_point(point)
 
         if self._last_vertex is not None and self.intersects(
@@ -254,6 +262,26 @@ class Polygon:
     def last_vertex(self) -> Vertex:
         return self._last_vertex
 
+    def iter_vertexes(self) -> Iterable[Vertex]:
+        current_vertex: Vertex = self._first_vertex
+
+        while True:
+            if current_vertex is None:
+                break
+
+            yield current_vertex
+
+            if current_vertex.half_edge.next is None:
+                break
+
+            if (
+                self.is_closed()
+                and self._first_vertex.half_edge.previous.origin is current_vertex
+            ):
+                break
+
+            current_vertex = current_vertex.half_edge.next.origin
+
     def close(self) -> None:
         if self.is_closed():
             raise PolygonClosedException()
@@ -289,34 +317,16 @@ class Polygon:
     def intersects(self, line: LineString, no_vertexes: bool = True) -> bool:
         edges: list[LineString] = list()
 
-        current_vertex: Vertex = self._first_vertex
-        if current_vertex is None:
-            return False
-
-        if current_vertex.half_edge.next is None:
-            return False
-
-        next_vertex: Vertex = current_vertex.half_edge.next.origin
-        if next_vertex is None:
-            return False
-
-        edges.append(LineString([current_vertex.to_tuple(), next_vertex.to_tuple()]))
-
-        current_vertex = next_vertex
-
-        while current_vertex is not self._first_vertex:
-            if current_vertex.half_edge.next is None:
-                break
-
-            next_vertex = current_vertex.half_edge.next.origin
-            if next_vertex is None:
-                break
+        previous_vertex: Vertex | None = self._first_vertex
+        for current_vertex in self.iter_vertexes():
+            if current_vertex is self._first_vertex:
+                continue
 
             edges.append(
-                LineString([current_vertex.to_tuple(), next_vertex.to_tuple()])
+                LineString([previous_vertex.to_tuple(), current_vertex.to_tuple()])
             )
 
-            current_vertex = next_vertex
+            previous_vertex = current_vertex
 
         for edge in edges:
             intersection = line.intersection(edge)
@@ -337,13 +347,16 @@ class Polygon:
         return False
 
     def triangulate(self) -> None:
-        vertex_queue: list[Vertex] = sorted(  # noqa
-            self,
+        if not self.is_closed():
+            raise PolygonIsNotClosedException()
+
+        vertex_queue: list[Vertex] = sorted(
+            self.iter_vertexes(),
             key=lambda _vertex: (_vertex.y(), _vertex.x()),
         )
 
         first_vertex: Vertex = vertex_queue.pop(0)
-        if self._type_of_vertex(first_vertex) is not VertexType.START:
+        if self._type_of_vertex(first_vertex) is VertexType.SPLIT:
             self._clockwise = False
 
         first_vertex.type_ = VertexType.START
@@ -354,6 +367,9 @@ class Polygon:
             current_vertex.type_ = self._type_of_vertex(current_vertex)
 
     def _type_of_vertex(self, current_vertex: Vertex) -> VertexType:
+        if not self.is_closed():
+            raise PolygonIsNotClosedException()
+
         next_vertex: Vertex = current_vertex.half_edge.next.origin
         previous_vertex: Vertex = current_vertex.half_edge.previous.origin
 
@@ -405,12 +421,12 @@ class Polygon:
         leftmost_vertex: QPoint = vertexes[0]
         rightmost_vertex: QPoint = vertexes[0]
 
-        for vertex in vertexes[1:]:
-            if vertex.x() < leftmost_vertex.x():
-                leftmost_vertex = vertex
+        for current_vertex in vertexes[1:]:
+            if current_vertex.x() < leftmost_vertex.x():
+                leftmost_vertex = current_vertex
 
-            if vertex.x() > rightmost_vertex.x():
-                rightmost_vertex = vertex
+            if current_vertex.x() > rightmost_vertex.x():
+                rightmost_vertex = current_vertex
 
         above_line_vertexes: list[QPoint] = list()
         below_line_vertexes: list[QPoint] = list()
@@ -418,18 +434,24 @@ class Polygon:
         vertexes.remove(leftmost_vertex)
         vertexes.remove(rightmost_vertex)
 
-        for vertex in vertexes:
-            vector_product: int = int(
-                (vertex.x() - leftmost_vertex.x())
-                * (rightmost_vertex.y() - leftmost_vertex.y())
-                - (vertex.y() - leftmost_vertex.y())
-                * (rightmost_vertex.x() - leftmost_vertex.x())
+        for current_vertex in vertexes:
+            leftmost_to_current_vector: Vector2D = Vector2D(
+                current_vertex.x() - leftmost_vertex.x(),
+                current_vertex.y() - leftmost_vertex.y(),
+            )
+            leftmost_to_rightmost_vector: Vector2D = Vector2D(
+                rightmost_vertex.x() - leftmost_vertex.x(),
+                rightmost_vertex.y() - leftmost_vertex.y(),
+            )
+
+            vector_product: float = leftmost_to_current_vector.cross_product(
+                leftmost_to_rightmost_vector
             )
 
             if vector_product > 0:
-                above_line_vertexes.append(vertex)
+                above_line_vertexes.append(current_vertex)
             else:
-                below_line_vertexes.append(vertex)
+                below_line_vertexes.append(current_vertex)
 
         above_line_vertexes.sort(key=lambda p: p.x())
         below_line_vertexes.sort(key=lambda p: p.x(), reverse=True)
@@ -437,34 +459,17 @@ class Polygon:
         polygon: Polygon = Polygon()
         polygon.set_random_color()
 
-        for vertex in (
+        for current_vertex in (
             leftmost_vertex,
             *above_line_vertexes,
             rightmost_vertex,
             *below_line_vertexes,
         ):
-            polygon.add_vertex(vertex)
+            polygon.add_vertex(current_vertex)
 
         polygon.close()
 
         return polygon
-
-    def __iter__(self) -> Vertex:
-        current_vertex: Vertex = self._first_vertex
-
-        while True:
-            if current_vertex is None:
-                break
-
-            yield current_vertex
-
-            if current_vertex.half_edge.next is None:
-                break
-
-            if self.is_closed() and self._first_vertex.half_edge.previous.origin is current_vertex:
-                break
-
-            current_vertex = current_vertex.half_edge.next.origin
 
 
 class Canvas(QLabel):
@@ -528,23 +533,17 @@ class Canvas(QLabel):
             return d.x() ** 2 + d.y() ** 2 <= r**2
 
         if event.button() == Qt.MouseButton.LeftButton:
-            closest_point: QPoint | None = None
-            for previous_point in self._polygon:
-                if is_close(event.pos(), previous_point, 5):
-                    closest_point = previous_point
+            closest_vertex: QPoint | None = None
+            for vertex in self._polygon.iter_vertexes():
+                if is_close(event.pos(), vertex, 5):
+                    closest_vertex = vertex
 
                     break
 
-            if closest_point is not None:
-                self.set_dragging_vertex(closest_point)
+            if closest_vertex is not None:
+                self.set_dragging_vertex(closest_vertex)
             else:
-                if self._polygon.is_closed():
-                    Dialog(
-                        "Полигон закрыт",
-                        "Полигон закрыт: невозможно поставить ещё одну точку.",
-                    ).exec()
-                else:
-                    self.place_point(QPoint(event.pos()), painter)
+                self.place_point(QPoint(event.pos()), painter)
         elif event.button() == Qt.MouseButton.RightButton:
             self.close_polygon(painter)
 
@@ -577,7 +576,7 @@ class Canvas(QLabel):
         painter: QPainter = Canvas.construct_painter(self._polygon.color, canvas)
 
         previous_vertex: QPoint | None = None
-        for vertex in self._polygon:
+        for vertex in self._polygon.iter_vertexes():
             painter.drawEllipse(vertex, 2, 2)
 
             if previous_vertex is not None:
@@ -594,6 +593,11 @@ class Canvas(QLabel):
     def place_point(self, point: QPoint, painter: QPainter) -> None:
         try:
             self._polygon.add_vertex(point)
+        except PolygonClosedException:
+            Dialog(
+                "Полигон закрыт",
+                "Полигон закрыт: невозможно поставить ещё одну точку.",
+            ).exec()
         except SelfIntersectionException:
             Dialog(
                 "Проверка на самопересечения",
@@ -604,7 +608,10 @@ class Canvas(QLabel):
 
             previous_half_edge: HalfEdge = self._polygon.last_vertex.half_edge.previous
             if previous_half_edge is not None:
-                painter.drawLine(self._polygon.last_vertex.half_edge.previous.origin, self._polygon.last_vertex)
+                painter.drawLine(
+                    self._polygon.last_vertex.half_edge.previous.origin,
+                    self._polygon.last_vertex,
+                )
 
     def close_polygon(self, painter: QPainter) -> None:
         try:
@@ -617,7 +624,7 @@ class Canvas(QLabel):
         except SelfIntersectionException:
             Dialog(
                 "Проверка на самопересечения",
-                "Закрытие полигона сейчас приведёт к самопересечению. "
+                "Закрытие полигона сейчас приведёт к самопересечению.\n"
                 "Измените геометрию полигона и повторите попытку.",
             ).exec()
         except NotEnoughVertexesException:
@@ -631,20 +638,6 @@ class Canvas(QLabel):
         self._dragging_vertex = vertex
 
     def triangulate_polygon(self) -> None:
-        self._polygon.triangulate()
-
-        # diagonals: list[tuple[QPoint, QPoint]] = list()
-        #
-        # for first_index, first_point in enumerate(self.polygon):
-        #     for second_point in self.polygon[first_index + 2 :]:
-        #         if {first_point, second_point} == {self.polygon[0], self.polygon[-1]}:
-        #             continue
-        #
-        #         if self.check_for_intersections(first_point, second_point):
-        #             continue
-        #
-        #         diagonals.append((first_point, second_point))
-
         def place_point(color: QColor, point: QPoint) -> None:
             canvas_ = self.pixmap()
             painter_ = Canvas.construct_painter(color, canvas_, 10)
@@ -654,18 +647,26 @@ class Canvas(QLabel):
             painter_.end()
             self.setPixmap(canvas_)
 
-        for vertex in self._polygon:
-            match vertex.type_:
-                case VertexType.START:
-                    place_point(QColor("yellow"), vertex)
-                case VertexType.END:
-                    place_point(QColor("green"), vertex)
-                case VertexType.SPLIT:
-                    place_point(QColor("red"), vertex)
-                case VertexType.MERGE:
-                    place_point(QColor("blue"), vertex)
-                case VertexType.REGULAR:
-                    place_point(QColor("black"), vertex)
+        try:
+            self._polygon.triangulate()
+        except PolygonIsNotClosedException:
+            Dialog(
+                "Полигон не закрыт",
+                "Полигон не закрыт: невозможно запустить триангуляцию.\nЗакройте полигон и попробуйте снова.",
+            ).exec()
+        else:
+            for vertex in self._polygon.iter_vertexes():
+                match vertex.type_:
+                    case VertexType.START:
+                        place_point(QColor("yellow"), vertex)
+                    case VertexType.END:
+                        place_point(QColor("green"), vertex)
+                    case VertexType.SPLIT:
+                        place_point(QColor("red"), vertex)
+                    case VertexType.MERGE:
+                        place_point(QColor("blue"), vertex)
+                    case VertexType.REGULAR:
+                        place_point(QColor("black"), vertex)
 
     def clear_canvas(self) -> None:
         canvas = self.pixmap()
