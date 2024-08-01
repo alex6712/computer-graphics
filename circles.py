@@ -361,7 +361,7 @@ class Circles(QMainWindow):
             f"Радиус внутренней окружности: {self.size_slider.value()}px"
         )
         self.size_slider_label.setWordWrap(True)
-        self.size_slider_label.setStyleSheet("QLabel {font-size: 16pt; margin: auto;}")
+        self.size_slider_label.setStyleSheet("QLabel {margin: auto; padding: 10px; font-size: 18px;}")
 
         self.period_slider = QSlider(Qt.Orientation.Horizontal)
         self.period_slider.setGeometry(50, 50, 200, 50)
@@ -377,7 +377,7 @@ class Circles(QMainWindow):
         )
         self.period_slider_label.setWordWrap(True)
         self.period_slider_label.setStyleSheet(
-            "QLabel {font-size: 16pt; margin: auto;}"
+            "QLabel {margin: auto; padding: 10px; font-size: 18px;}"
         )
 
         left_widgets.addWidget(self.size_slider_label)
@@ -391,15 +391,15 @@ class Circles(QMainWindow):
 
         self.start_button = QPushButton("Запустить")
         self.start_button.clicked.connect(self.start_timer)  # noqa
-        self.start_button.setStyleSheet("QPushButton {margin: auto; padding: 5px;}")
+        self.start_button.setStyleSheet("QPushButton {margin: auto; padding: 10px; font-size: 18px;}")
 
         self.stop_button = QPushButton("Остановить")
         self.stop_button.clicked.connect(self.stop_timer)  # noqa
-        self.stop_button.setStyleSheet("QPushButton {margin: auto; padding: 5px;}")
+        self.stop_button.setStyleSheet("QPushButton {margin: auto; padding: 10px; font-size: 18px;}")
 
         self.info_button = QPushButton("Справка")
         self.info_button.clicked.connect(self.show_info)  # noqa
-        self.info_button.setStyleSheet("QPushButton {margin: auto; padding: 5px;}")
+        self.info_button.setStyleSheet("QPushButton {margin: auto; padding: 10px; font-size: 18px;}")
 
         self.stop_button.setEnabled(False)
 
@@ -417,11 +417,17 @@ class Circles(QMainWindow):
 
         self.line_check_box = QCheckBox("Показывать гипоциклоиду")
         self.line_check_box.clicked.connect(self.line_toggle)  # noqa
+        self.line_check_box.setStyleSheet(
+            "QCheckBox {margin: auto; padding: 10px; font-size: 18px;}"
+        )
 
         self.motion_direction_clockwise: bool = False
         self.motion_direction_check_box = QCheckBox("Движение по часовой стрелке")
         self.motion_direction_check_box.clicked.connect(  # noqa
             self.motion_direction_changed
+        )
+        self.motion_direction_check_box.setStyleSheet(
+            "QCheckBox {margin: auto; padding: 10px; font-size: 18px;}"
         )
 
         bottom_widgets.addWidget(self.line_check_box)

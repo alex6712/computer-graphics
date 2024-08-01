@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QDialog,
+    QCheckBox,
 )
 from shapely.geometry import LineString, Point
 
@@ -410,7 +411,7 @@ class Polygon:
 
     @staticmethod
     def random_polygon() -> "Polygon":
-        vertex_number: int = randint(4, 14)
+        vertex_number: int = randint(10, 20)
 
         canvas_width, canvas_height = Canvas.get_size()
 
@@ -484,6 +485,8 @@ class Canvas(QLabel):
     ):
         super(Canvas, self).__init__(*args, **kwargs)
 
+        self.setMouseTracking(True)
+
         self.setFixedSize(*Canvas._size)
 
         _canvas: QPixmap = QPixmap(*Canvas._size)
@@ -493,14 +496,26 @@ class Canvas(QLabel):
 
         self.place_grid()
 
+        self._triangulate_permanent: bool = False
+
         self._polygon: Polygon = raw_polygon
         self._triangles: list[Polygon] = list()
 
         self._dragging_vertex: QPoint | None = None
 
+        self._mouse_pos: QPoint | None = None
+
     @classmethod
     def get_size(cls) -> tuple[int, int]:
         return cls._size
+
+    @property
+    def triangulate_permanent(self) -> bool:
+        return self._triangulate_permanent
+
+    @triangulate_permanent.setter
+    def triangulate_permanent(self, triangulate_permanent: bool) -> None:
+        self._triangulate_permanent = triangulate_permanent
 
     def replace_polygon(self, new_polygon: Polygon) -> None:
         self._polygon = new_polygon
@@ -554,26 +569,36 @@ class Canvas(QLabel):
             self.triangulate_polygon()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        if self._dragging_vertex is None:
-            return
+        self._mouse_pos = event.pos()
 
-        self._dragging_vertex.setX(event.pos().x())
-        self._dragging_vertex.setY(event.pos().y())
+        if self._dragging_vertex is not None:
+            self._dragging_vertex.setX(event.pos().x())
+            self._dragging_vertex.setY(event.pos().y())
 
         self.redraw_canvas()
 
-        if self._polygon.is_closed():
+        if self._triangulate_permanent and self._polygon.is_closed():
             self.triangulate_polygon()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         if self._dragging_vertex is not None:
             self._dragging_vertex = None
 
+        self.redraw_canvas()
+
+        if self._polygon.is_closed():
+            self.triangulate_polygon()
+
     def redraw_canvas(self) -> None:
         self.clear_canvas()
 
         canvas = self.pixmap()
-        painter: QPainter = Canvas.construct_painter(self._polygon.color, canvas)
+        painter: QPainter = QPainter(canvas)
+
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        painter.setPen(QPen(QColor(self._polygon.color), 4, Qt.PenStyle.SolidLine))
+        painter.setBrush(QBrush(QColor(self._polygon.color), Qt.BrushStyle.SolidPattern))
 
         previous_vertex: QPoint | None = None
         for vertex in self._polygon.iter_vertexes():
@@ -586,6 +611,30 @@ class Canvas(QLabel):
 
         if self._polygon.is_closed():
             painter.drawLine(self._polygon.last_vertex, self._polygon.first_vertex)
+
+        if self._mouse_pos is not None:
+            painter.setPen(QPen(QColor(255, 255, 255, 127), 4, Qt.PenStyle.SolidLine))
+            painter.setBrush(QBrush(QColor(255, 255, 255, 127), Qt.BrushStyle.SolidPattern))
+
+            font: QFont = QFont()
+            font.setPointSize(12)
+            painter.setFont(font)
+
+            painter.drawText(self._mouse_pos + QPoint(20, 20), f"({self._mouse_pos.x()}; {self._mouse_pos.y()})")
+
+        if self._dragging_vertex is not None:
+            painter.setPen(QPen(QColor(255, 255, 255, 127), 2, Qt.PenStyle.DashDotDotLine))
+            painter.setBrush(QBrush(QColor(255, 255, 255, 127), Qt.BrushStyle.SolidPattern))
+
+            painter.drawLine(
+                QPoint(self._dragging_vertex.x(), 0),
+                QPoint(self._dragging_vertex.x(), Canvas._size[1])
+            )
+
+            painter.drawLine(
+                QPoint(0, self._dragging_vertex.y()),
+                QPoint(Canvas._size[0], self._dragging_vertex.y())
+            )
 
         painter.end()
         self.setPixmap(canvas)
@@ -638,15 +687,6 @@ class Canvas(QLabel):
         self._dragging_vertex = vertex
 
     def triangulate_polygon(self) -> None:
-        def place_point(color: QColor, point: QPoint) -> None:
-            canvas_ = self.pixmap()
-            painter_ = Canvas.construct_painter(color, canvas_, 10)
-
-            painter_.drawPoint(point)
-
-            painter_.end()
-            self.setPixmap(canvas_)
-
         try:
             self._polygon.triangulate()
         except PolygonIsNotClosedException:
@@ -655,18 +695,33 @@ class Canvas(QLabel):
                 "Полигон не закрыт: невозможно запустить триангуляцию.\nЗакройте полигон и попробуйте снова.",
             ).exec()
         else:
+            canvas: QPixmap = self.pixmap()
+            painter: QPainter = QPainter(canvas)
+
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+            width: int = 10
+
             for vertex in self._polygon.iter_vertexes():
+                color: str = "black"
+
                 match vertex.type_:  # noqa
                     case VertexType.START:
-                        place_point(QColor("yellow"), vertex)
+                        color = "yellow"
                     case VertexType.END:
-                        place_point(QColor("green"), vertex)
+                        color = "green"
                     case VertexType.SPLIT:
-                        place_point(QColor("red"), vertex)
+                        color = "red"
                     case VertexType.MERGE:
-                        place_point(QColor("blue"), vertex)
-                    case VertexType.REGULAR:
-                        place_point(QColor("black"), vertex)
+                        color = "blue"
+
+                painter.setPen(QPen(QColor(color), width, Qt.PenStyle.SolidLine))
+                painter.setBrush(QBrush(QColor(color), Qt.BrushStyle.SolidPattern))
+
+                painter.drawPoint(vertex)
+
+            painter.end()
+            self.setPixmap(canvas)
 
     def clear_canvas(self) -> None:
         canvas = self.pixmap()
@@ -677,35 +732,41 @@ class Canvas(QLabel):
 
     @staticmethod
     def construct_painter(
-        color: QColor, paint_device: QPaintDevice, width: int = 4
+            color: QColor, paint_device: QPaintDevice, width: int = 4, pen_style: Qt.PenStyle = Qt.PenStyle.SolidLine
     ) -> QPainter:
         painter = QPainter(paint_device)
 
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setPen(QPen(color, width, Qt.PenStyle.SolidLine))
+        painter.setPen(QPen(color, width, pen_style))
         painter.setBrush(QBrush(color, Qt.BrushStyle.SolidPattern))
 
         return painter
 
 
 class Dialog(QDialog):
-    def __init__(self, title: str = "Ошибка", message: str = "Непредвиденная ошибка!"):
+    def __init__(self, title: str = "Ошибка", message: str = "Непредвиденная ошибка!", with_cancel: bool = False):
         super().__init__()
 
         self.setWindowTitle(title)
 
-        button = QDialogButtonBox.StandardButton.Ok
+        if with_cancel:
+            button = QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        else:
+            button = QDialogButtonBox.StandardButton.Ok
 
-        self.buttonBox = QDialogButtonBox(button)
-        self.buttonBox.accepted.connect(self.accept)  # noqa
+        self.button_box = QDialogButtonBox(button)
+        self.button_box.accepted.connect(self.accept)  # noqa
+
+        if with_cancel:
+            self.button_box.rejected.connect(self.reject)  # noqa
 
         self.layout = QVBoxLayout()
 
         message = QLabel(message)
-        message.setStyleSheet("QLabel {font-size: 16pt; margin: auto;}")
+        message.setStyleSheet("QLabel {font-size: 18px; margin: auto;}")
 
         self.layout.addWidget(message)
-        self.layout.addWidget(self.buttonBox)
+        self.layout.addWidget(self.button_box)
         self.setLayout(self.layout)
 
 
@@ -776,13 +837,13 @@ class Cutting(QMainWindow):
         clear_button = QPushButton("Очистить холст")
         clear_button.clicked.connect(self.clear_canvas)  # noqa
         clear_button.setStyleSheet(
-            "QPushButton {margin: auto; padding: 5px; font-size: 24px;}"
+            "QPushButton {margin: auto; padding: 10px; font-size: 18px;}"
         )
 
         info_button = QPushButton("Справка")
         info_button.clicked.connect(self.info_clicked)  # noqa
         info_button.setStyleSheet(
-            "QPushButton {margin: auto; padding: 5px; font-size: 24px;}"
+            "QPushButton {margin: auto; padding: 10px; font-size: 18px;}"
         )
 
         right_widgets.addWidget(clear_button)
@@ -798,10 +859,19 @@ class Cutting(QMainWindow):
         random_button = QPushButton("Случайный полигон")
         random_button.clicked.connect(self.place_random_polygon)  # noqa
         random_button.setStyleSheet(
-            "QPushButton {margin: auto; padding: 5px; font-size: 24px;}"
+            "QPushButton {margin: auto; padding: 10px; font-size: 18px;}"
+        )
+
+        self.triangulate_mode_check_box = QCheckBox("Триангулировать постоянно")
+        self.triangulate_mode_check_box.clicked.connect(  # noqa
+            self.triangulate_mode_changed
+        )
+        self.triangulate_mode_check_box.setStyleSheet(
+            "QCheckBox {margin: auto; padding: 10px; font-size: 18px;}"
         )
 
         bottom_widgets.addWidget(random_button)
+        bottom_widgets.addWidget(self.triangulate_mode_check_box)
 
         all_widgets.addLayout(central_widgets)
         all_widgets.addLayout(bottom_widgets)
@@ -827,6 +897,22 @@ class Cutting(QMainWindow):
         random_polygon: Polygon = Polygon.random_polygon()
 
         self.canvas.replace_polygon(random_polygon)
+
+    def triangulate_mode_changed(self) -> None:
+        want_to_enable: bool = self.triangulate_mode_check_box.isChecked()
+
+        if want_to_enable:
+            want_to_enable &= Dialog(
+                "Предупреждение",
+                "При включении данной функции может пострадать производительность.\n"
+                "Вы действительно хотите её включить?",
+                with_cancel=True,
+            ).exec()
+
+        if not want_to_enable:
+            self.triangulate_mode_check_box.setChecked(False)
+
+        self.canvas.triangulate_permanent = want_to_enable
 
 
 if __name__ == "__main__":

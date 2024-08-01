@@ -7,6 +7,8 @@
     <list default="true" id="1f8cd0da-ca49-473f-8150-db68623c02d3" name="Changes" comment="✨ Микроизменения">
       <change beforePath="$PROJECT_DIR$/.idea/discord.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/circles.py" beforeDir="false" afterPath="$PROJECT_DIR$/circles.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cutting.py" beforeDir="false" afterPath="$PROJECT_DIR$/cutting.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -48,18 +50,18 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Python.circles.executor&quot;: &quot;Run&quot;,
-    &quot;Python.cutting.executor&quot;: &quot;Run&quot;,
-    &quot;Python.main.executor&quot;: &quot;Run&quot;,
-    &quot;Python.polygons.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;vcs.Git&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Python.circles.executor": "Run",
+    "Python.cutting.executor": "Run",
+    "Python.main.executor": "Run",
+    "Python.polygons.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "master",
+    "ignore.virus.scanning.warn.message": "true",
+    "settings.editor.selected.configurable": "editing.templates"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$" />
@@ -198,7 +200,15 @@
       <option name="project" value="LOCAL" />
       <updated>1722539941648</updated>
     </task>
-    <option name="localTasksCounter" value="9" />
+    <task id="LOCAL-00009" summary="✨ Микроизменения">
+      <option name="closed" value="true" />
+      <created>1722540453589</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1722540453589</updated>
+    </task>
+    <option name="localTasksCounter" value="10" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
