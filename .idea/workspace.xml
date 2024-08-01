@@ -4,8 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="1f8cd0da-ca49-473f-8150-db68623c02d3" name="Changes" comment="✨ Небольшие улучшения&#10;* код был форматирован Black;&#10;* убраны устаревшие ручные переборы;&#10;* убран ручной подсчёт векторного произведения, где остался.">
+    <list default="true" id="1f8cd0da-ca49-473f-8150-db68623c02d3" name="Changes" comment="✨ Микроизменения">
       <change beforePath="$PROJECT_DIR$/.idea/discord.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -39,7 +40,7 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "master",
     "ignore.virus.scanning.warn.message": "true",
-    "settings.editor.selected.configurable": "editing.templates"
+    "settings.editor.selected.configurable": "org.jetbrains.plugins.github.ui.GithubSettingsConfigurable"
   }
 }]]></component>
   <component name="RecentsManager">
@@ -156,7 +157,15 @@
       <option name="project" value="LOCAL" />
       <updated>1722536984194</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="✨ Микроизменения">
+      <option name="closed" value="true" />
+      <created>1722539659027</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1722539659027</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -176,6 +185,7 @@
     <MESSAGE value="✨ Реализован класс Polygon&#10;* все действия с математикой полигона перенесены в него;&#10;* в классе Canvas осталась лишь реализация отрисовки полигона." />
     <MESSAGE value="✨ Реализован подход DCEL" />
     <MESSAGE value="✨ Небольшие улучшения&#10;* код был форматирован Black;&#10;* убраны устаревшие ручные переборы;&#10;* убран ручной подсчёт векторного произведения, где остался." />
-    <option name="LAST_COMMIT_MESSAGE" value="✨ Небольшие улучшения&#10;* код был форматирован Black;&#10;* убраны устаревшие ручные переборы;&#10;* убран ручной подсчёт векторного произведения, где остался." />
+    <MESSAGE value="✨ Микроизменения" />
+    <option name="LAST_COMMIT_MESSAGE" value="✨ Микроизменения" />
   </component>
 </project>
