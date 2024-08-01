@@ -38,7 +38,7 @@ class Vector2D:
         return self._x
 
     @x.setter
-    def x(self, x: float):
+    def x(self, x: float) -> None:
         self._x = x
 
     @property
@@ -46,7 +46,7 @@ class Vector2D:
         return self._y
 
     @y.setter
-    def y(self, y: float):
+    def y(self, y: float) -> None:
         self._y = y
 
     def length(self) -> float:

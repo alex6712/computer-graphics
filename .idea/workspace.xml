@@ -4,10 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="1f8cd0da-ca49-473f-8150-db68623c02d3" name="Changes" comment="✨ Реализован подход DCEL">
+    <list default="true" id="1f8cd0da-ca49-473f-8150-db68623c02d3" name="Changes" comment="✨ Небольшие улучшения&#10;* код был форматирован Black;&#10;* убраны устаревшие ручные переборы;&#10;* убран ручной подсчёт векторного произведения, где остался.">
       <change beforePath="$PROJECT_DIR$/.idea/discord.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/cutting.py" beforeDir="false" afterPath="$PROJECT_DIR$/cutting.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -150,7 +148,15 @@
       <option name="project" value="LOCAL" />
       <updated>1722534458847</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="✨ Небольшие улучшения&#10;* код был форматирован Black;&#10;* убраны устаревшие ручные переборы;&#10;* убран ручной подсчёт векторного произведения, где остался.">
+      <option name="closed" value="true" />
+      <created>1722536984194</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1722536984194</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -169,6 +175,7 @@
     <MESSAGE value=" Рефакторинг&#10;* применён Black;&#10;* исправление мелких недочётов." />
     <MESSAGE value="✨ Реализован класс Polygon&#10;* все действия с математикой полигона перенесены в него;&#10;* в классе Canvas осталась лишь реализация отрисовки полигона." />
     <MESSAGE value="✨ Реализован подход DCEL" />
-    <option name="LAST_COMMIT_MESSAGE" value="✨ Реализован подход DCEL" />
+    <MESSAGE value="✨ Небольшие улучшения&#10;* код был форматирован Black;&#10;* убраны устаревшие ручные переборы;&#10;* убран ручной подсчёт векторного произведения, где остался." />
+    <option name="LAST_COMMIT_MESSAGE" value="✨ Небольшие улучшения&#10;* код был форматирован Black;&#10;* убраны устаревшие ручные переборы;&#10;* убран ручной подсчёт векторного произведения, где остался." />
   </component>
 </project>
