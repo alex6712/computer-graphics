@@ -21,8 +21,25 @@
     </option>
   </component>
   <component name="Git.Settings">
+    <option name="PREVIOUS_COMMIT_AUTHORS">
+      <list>
+        <option value="alex6712 &lt;alexeivanyukov@yandex.ru&gt;" />
+      </list>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;alex6712&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;git@github.com:alex6712/computer-graphics.git&quot;,
+    &quot;accountId&quot;: &quot;a7f1566d-7ed5-4804-abfa-203298e38e9a&quot;
+  }
+}</component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 3
 }</component>
@@ -31,18 +48,18 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Python.circles.executor": "Run",
-    "Python.cutting.executor": "Run",
-    "Python.main.executor": "Run",
-    "Python.polygons.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "master",
-    "ignore.virus.scanning.warn.message": "true",
-    "settings.editor.selected.configurable": "org.jetbrains.plugins.github.ui.GithubSettingsConfigurable"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Python.circles.executor&quot;: &quot;Run&quot;,
+    &quot;Python.cutting.executor&quot;: &quot;Run&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;Python.polygons.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;vcs.Git&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$" />
@@ -165,7 +182,23 @@
       <option name="project" value="LOCAL" />
       <updated>1722539659027</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="✨ Микроизменения&#10;* poetry update.">
+      <option name="closed" value="true" />
+      <created>1722539811585</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1722539811585</updated>
+    </task>
+    <task id="LOCAL-00008" summary="✨ Микроизменения">
+      <option name="closed" value="true" />
+      <created>1722539941648</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1722539941648</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -180,12 +213,17 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
+    <option name="CHECK_CODE_CLEANUP_BEFORE_PROJECT_COMMIT" value="true" />
     <MESSAGE value=" Автоматизация&#10;* точки пересечения полигонов в задаче 1.21 устанавливаются как только оба из них закрыты;&#10;* диагонали полигона в задаче 3.21 определяются автоматически при его закрытии." />
     <MESSAGE value=" Рефакторинг&#10;* применён Black;&#10;* исправление мелких недочётов." />
     <MESSAGE value="✨ Реализован класс Polygon&#10;* все действия с математикой полигона перенесены в него;&#10;* в классе Canvas осталась лишь реализация отрисовки полигона." />
     <MESSAGE value="✨ Реализован подход DCEL" />
     <MESSAGE value="✨ Небольшие улучшения&#10;* код был форматирован Black;&#10;* убраны устаревшие ручные переборы;&#10;* убран ручной подсчёт векторного произведения, где остался." />
+    <MESSAGE value="✨ Микроизменения&#10;* poetry update." />
     <MESSAGE value="✨ Микроизменения" />
     <option name="LAST_COMMIT_MESSAGE" value="✨ Микроизменения" />
+    <option name="OPTIMIZE_IMPORTS_BEFORE_PROJECT_COMMIT" value="true" />
+    <option name="REFORMAT_BEFORE_PROJECT_COMMIT" value="true" />
+    <option name="REARRANGE_BEFORE_PROJECT_COMMIT" value="true" />
   </component>
 </project>
