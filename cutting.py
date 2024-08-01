@@ -24,18 +24,52 @@ from PyQt6.QtWidgets import (
     QWidget,
     QDialog,
 )
-from shapely.geometry import LineString
+from shapely.geometry import LineString, Point
 
 
-class _QPoint(QPoint):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+class Vector2D:
+    def __init__(self, x: float, y: float) -> None:
+        self._x: float = x
+        self._y: float = y
 
-    def to_tuple(self) -> tuple[int, int]:
-        return self.x(), self.y()
+    @property
+    def x(self) -> float:
+        return self._x
+
+    @x.setter
+    def x(self, x: float):
+        self._x = x
+
+    @property
+    def y(self) -> float:
+        return self._y
+
+    @y.setter
+    def y(self, y: float):
+        self._y = y
+
+    def length(self) -> float:
+        return math.sqrt(self._x**2 + self._y**2)
+
+    def dot_product(self, other: "Vector2D") -> float:
+        return self.x * other.x + self.y * other.y
+
+    def cross_product(self, other: "Vector2D") -> float:
+        return self.x * other.y - self.y * other.x
+
+    def __repr__(self) -> str:
+        return f"Vector <x: {self._x}, y: {self._y}>"
 
 
-QPoint = _QPoint
+def left_turn(u: Vector2D, v: Vector2D) -> int:
+    _cross_product: float = u.cross_product(v)
+
+    if _cross_product < 0:
+        return -1
+    elif _cross_product == 0:
+        return 0
+    else:
+        return 1
 
 
 class VertexType(Enum):
@@ -47,118 +81,272 @@ class VertexType(Enum):
 
 
 class Vertex(QPoint):
-    type_: VertexType
-
-    def __init__(self, index: int, *args, **kwargs) -> None:
+    def __init__(self, half_edge: "HalfEdge" = None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        self._index: int = index
+        self._half_edge: HalfEdge | None = half_edge
 
-    def index(self) -> int:
-        return self._index
+    @property
+    def half_edge(self) -> "HalfEdge":
+        return self._half_edge
 
-    @staticmethod
-    def from_point(index: int, point: QPoint) -> "Vertex":
-        return Vertex(index, point)
+    @half_edge.setter
+    def half_edge(self, half_edge: "HalfEdge") -> None:
+        self._half_edge = half_edge
+
+    def to_tuple(self) -> tuple[int, int]:
+        return self.x(), self.y()
 
     def __repr__(self) -> str:
-        return f"Vertex <index: {self._index}, type_: {self.type_}, pos: {self.to_tuple()}>"
+        return f"{self.to_tuple()}"
+
+    @staticmethod
+    def from_point(point: QPoint) -> "Vertex":
+        return Vertex(None, point)
 
 
-class Dialog(QDialog):
-    def __init__(self, title: str = "Ошибка", message: str = "Непредвиденная ошибка!"):
-        super().__init__()
+class HalfEdge:
+    def __init__(
+        self,
+        origin: Vertex = None,
+        next_: "HalfEdge" = None,
+        previous: "HalfEdge" = None,
+        twin: "HalfEdge" = None,
+        face: "Face" = None,
+    ) -> None:
+        self._origin: Vertex | None = origin
 
-        self.setWindowTitle(title)
+        self._next: HalfEdge | None = next_
+        self._previous: HalfEdge | None = previous
 
-        button = QDialogButtonBox.StandardButton.Ok
+        self._twin: HalfEdge | None = twin
 
-        self.buttonBox = QDialogButtonBox(button)
-        self.buttonBox.accepted.connect(self.accept)  # noqa
+        self._face: Face | None = face
 
-        self.layout = QVBoxLayout()
+    @property
+    def origin(self) -> Vertex:
+        return self._origin
 
-        message = QLabel(message)
-        message.setStyleSheet("QLabel {font-size: 16pt; margin: auto;}")
+    @origin.setter
+    def origin(self, origin: Vertex) -> None:
+        self._origin = origin
 
-        self.layout.addWidget(message)
-        self.layout.addWidget(self.buttonBox)
-        self.setLayout(self.layout)
+    @property
+    def next(self) -> "HalfEdge":
+        return self._next
+
+    @next.setter
+    def next(self, next_: "HalfEdge") -> None:
+        self._next = next_
+
+    @property
+    def previous(self) -> "HalfEdge":
+        return self._previous
+
+    @previous.setter
+    def previous(self, previous: "HalfEdge") -> None:
+        self._previous = previous
+
+    @property
+    def twin(self) -> "HalfEdge":
+        return self._twin
+
+    @twin.setter
+    def twin(self, twin: "HalfEdge") -> None:
+        self._twin = twin
+
+    @property
+    def face(self) -> "Face":
+        return self._face
+
+    @face.setter
+    def face(self, face: "Face") -> None:
+        self._face = face
+
+
+class Face:
+    def __init__(self, boundary: HalfEdge) -> None:
+        self._boundary: HalfEdge = boundary
+
+    @property
+    def boundary(self) -> HalfEdge:
+        return self._boundary
+
+
+class SelfIntersectionException(Exception):
+    pass
+
+
+class PolygonClosedException(Exception):
+    pass
+
+
+class NotEnoughVertexesException(Exception):
+    pass
 
 
 class Polygon:
     def __init__(self, color: QColor = QColor("black")) -> None:
-        self._vertexes: list[Vertex] = list()
+        self._first_vertex: Vertex | None = None
+        self._last_vertex: Vertex | None = None
+
+        self._vertex_count: int = 0
 
         self._color: QColor = color
 
         self._closed: bool = False
+        self._clockwise: bool = True
 
-    def get_color(self) -> QColor:
+    @property
+    def color(self) -> QColor:
         return self._color
 
-    def _set_color(self, color: QColor) -> None:
+    @color.setter
+    def color(self, color: QColor) -> None:
         self._color = color
 
     def set_random_color(self) -> None:
-        self._set_color(QColor(randint(63, 220), randint(63, 220), randint(63, 220)))
+        self._color = QColor(randint(63, 220), randint(63, 220), randint(63, 220))
 
     def add_vertex(self, point: QPoint) -> None:
-        vertex: Vertex = Vertex.from_point(
-            self.vertex_count(),
-            point,
-        )
-        self._vertexes.append(vertex)
+        new_vertex: Vertex = Vertex.from_point(point)
 
+        if self._last_vertex is not None and self.intersects(
+            LineString([self._last_vertex.to_tuple(), new_vertex.to_tuple()])
+        ):
+            raise SelfIntersectionException()
+
+        if self._first_vertex is None:
+            self._first_vertex = new_vertex
+
+        new_half_edge: HalfEdge = HalfEdge(new_vertex)
+        new_vertex.half_edge = new_half_edge
+
+        new_half_edge_twin: HalfEdge = HalfEdge(twin=new_half_edge)
+        new_half_edge.twin = new_half_edge_twin
+
+        if self._last_vertex is not None:
+            last_half_edge: HalfEdge = self._last_vertex.half_edge
+            last_half_edge_twin: HalfEdge = last_half_edge.twin
+
+            new_half_edge.previous = last_half_edge
+
+            new_half_edge_twin.next = last_half_edge_twin
+
+            last_half_edge.next = new_half_edge
+
+            last_half_edge_twin.origin = new_vertex
+            last_half_edge_twin.previous = new_half_edge_twin
+
+        self._last_vertex = new_vertex
+
+        self._vertex_count += 1
+
+    @property
     def vertex_count(self) -> int:
-        return len(self._vertexes)
+        return self._vertex_count
 
-    def peek_vertexes(self) -> list[Vertex]:
-        return self._vertexes.copy()
+    @property
+    def first_vertex(self) -> Vertex:
+        return self._first_vertex
 
-    def peek_vertex(self, index: int) -> Vertex:
-        return self._vertexes[index]
-
-    def peek_last_vertex(self) -> Vertex:
-        return self.peek_vertex(-1)
+    @property
+    def last_vertex(self) -> Vertex:
+        return self._last_vertex
 
     def close(self) -> None:
+        if self.is_closed():
+            raise PolygonClosedException()
+
+        if self.intersects(
+            LineString([self._last_vertex.to_tuple(), self._first_vertex.to_tuple()])
+        ):
+            raise SelfIntersectionException()
+
+        if self._vertex_count < 4:
+            raise NotEnoughVertexesException()
+
+        first_half_edge: HalfEdge = self._first_vertex.half_edge
+        first_half_edge_twin: HalfEdge = first_half_edge.twin
+
+        last_half_edge: HalfEdge = self._last_vertex.half_edge
+        last_half_edge_twin: HalfEdge = last_half_edge.twin
+
+        last_half_edge.next = first_half_edge
+
+        first_half_edge.previous = last_half_edge
+
+        last_half_edge_twin.origin = self._first_vertex
+        last_half_edge_twin.previous = first_half_edge_twin
+
+        first_half_edge_twin.next = last_half_edge_twin
+
         self._closed = True
 
     def is_closed(self) -> bool:
         return self._closed
 
-    def intersects(self, start_point: QPoint, end_point: QPoint) -> bool:
-        if len(self._vertexes) < 2:
-            return False
-
+    def intersects(self, line: LineString, no_vertexes: bool = True) -> bool:
         edges: list[LineString] = list()
 
-        previous_vertex: QPoint = self._vertexes[0]
-        for current_vertex in self._vertexes[1:]:
+        current_vertex: Vertex = self._first_vertex
+        if current_vertex is None:
+            return False
+
+        if current_vertex.half_edge.next is None:
+            return False
+
+        next_vertex: Vertex = current_vertex.half_edge.next.origin
+        if next_vertex is None:
+            return False
+
+        edges.append(LineString([current_vertex.to_tuple(), next_vertex.to_tuple()]))
+
+        current_vertex = next_vertex
+
+        while current_vertex is not self._first_vertex:
+            if current_vertex.half_edge.next is None:
+                break
+
+            next_vertex = current_vertex.half_edge.next.origin
+            if next_vertex is None:
+                break
+
             edges.append(
-                LineString([previous_vertex.to_tuple(), current_vertex.to_tuple()])
+                LineString([current_vertex.to_tuple(), next_vertex.to_tuple()])
             )
 
-            previous_vertex = current_vertex
-
-        line: LineString = LineString([start_point.to_tuple(), end_point.to_tuple()])
+            current_vertex = next_vertex
 
         for edge in edges:
-            if intersection := line.intersection(edge):
-                point: QPoint = QPoint(int(intersection.x), int(intersection.y))
+            intersection = line.intersection(edge)
 
-                if point in self._vertexes:
-                    continue
+            if not intersection:
+                continue
 
+            if not no_vertexes:
                 return True
+
+            point: tuple[int, int] = Point(int(intersection.x), int(intersection.y))
+
+            if point in edge.boundary.geoms:
+                continue
+
+            return True
 
         return False
 
     def triangulate(self) -> None:
-        vertex_queue: list[Vertex] = sorted(
-            self._vertexes, key=lambda _vertex: (_vertex.y(), -_vertex.x()), reverse=True
+        vertex_queue: list[Vertex] = sorted(  # noqa
+            self,
+            key=lambda _vertex: (_vertex.y(), _vertex.x()),
         )
+
+        first_vertex: Vertex = vertex_queue.pop(0)
+        if self._type_of_vertex(first_vertex) is not VertexType.START:
+            self._clockwise = False
+
+        first_vertex.type_ = VertexType.START
 
         while len(vertex_queue) > 0:
             current_vertex: Vertex = vertex_queue.pop(0)
@@ -166,12 +354,8 @@ class Polygon:
             current_vertex.type_ = self._type_of_vertex(current_vertex)
 
     def _type_of_vertex(self, current_vertex: Vertex) -> VertexType:
-        current_index: int = current_vertex.index()
-
-        next_vertex: Vertex = self._vertexes[
-            (current_index + 1) % self.vertex_count()
-        ]
-        previous_vertex: Vertex = self._vertexes[current_index - 1]
+        next_vertex: Vertex = current_vertex.half_edge.next.origin
+        previous_vertex: Vertex = current_vertex.half_edge.previous.origin
 
         def is_higher(v1: Vertex, v2: Vertex) -> bool:
             if v1.y() == v2.y():
@@ -182,31 +366,26 @@ class Polygon:
         is_higher_than_right: bool = is_higher(current_vertex, next_vertex)
         is_higher_than_left: bool = is_higher(current_vertex, previous_vertex)
 
-        vector_to_next: list[int] = [
+        vector_to_next: Vector2D = Vector2D(
             next_vertex.x() - current_vertex.x(),
             next_vertex.y() - current_vertex.y(),
-        ]
-        vector_to_previous: list[int] = [
+        )
+        vector_to_previous: Vector2D = Vector2D(
             previous_vertex.x() - current_vertex.x(),
             previous_vertex.y() - current_vertex.y(),
-        ]
-
-        angle: float = math.acos(
-            (vector_to_next[0] * vector_to_previous[0] + vector_to_next[1] * vector_to_previous[1])
-            / (
-                math.sqrt(vector_to_next[0] ** 2 + vector_to_next[1] ** 2)
-                * math.sqrt(vector_to_previous[0] ** 2 + vector_to_previous[1] ** 2)
-            )
         )
-        angle = math.degrees(angle)
+
+        predicate: int = left_turn(vector_to_next, vector_to_previous)
+        if not self._clockwise:
+            predicate *= -1
 
         if is_higher_than_right and is_higher_than_left:
-            if angle > 180:
+            if predicate == 1:
                 return VertexType.SPLIT
             else:
                 return VertexType.START
         elif not (is_higher_than_right or is_higher_than_left):
-            if angle > 180:
+            if predicate == 1:
                 return VertexType.MERGE
             else:
                 return VertexType.END
@@ -215,7 +394,7 @@ class Polygon:
 
     @staticmethod
     def random_polygon() -> "Polygon":
-        vertex_number: int = randint(4, 8)
+        vertex_number: int = randint(4, 14)
 
         canvas_width, canvas_height = Canvas.get_size()
 
@@ -269,6 +448,23 @@ class Polygon:
         polygon.close()
 
         return polygon
+
+    def __iter__(self) -> Vertex:
+        current_vertex: Vertex = self._first_vertex
+
+        while True:
+            if current_vertex is None:
+                break
+
+            yield current_vertex
+
+            if current_vertex.half_edge.next is None:
+                break
+
+            if self.is_closed() and self._first_vertex.half_edge.previous.origin is current_vertex:
+                break
+
+            current_vertex = current_vertex.half_edge.next.origin
 
 
 class Canvas(QLabel):
@@ -324,7 +520,7 @@ class Canvas(QLabel):
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         canvas: QPixmap = self.pixmap()
-        painter: QPainter = Canvas.construct_painter(self._polygon.get_color(), canvas)
+        painter: QPainter = Canvas.construct_painter(self._polygon.color, canvas)
 
         def is_close(p: QPoint, q: QPoint, r: float) -> bool:
             d: QPoint = p - q
@@ -333,7 +529,7 @@ class Canvas(QLabel):
 
         if event.button() == Qt.MouseButton.LeftButton:
             closest_point: QPoint | None = None
-            for previous_point in self._polygon.peek_vertexes():
+            for previous_point in self._polygon:
                 if is_close(event.pos(), previous_point, 5):
                     closest_point = previous_point
 
@@ -362,10 +558,8 @@ class Canvas(QLabel):
         if self._dragging_vertex is None:
             return
 
-        for vertex in self._polygon.peek_vertexes():
-            if vertex is self._dragging_vertex:
-                vertex.setX(event.pos().x())
-                vertex.setY(event.pos().y())
+        self._dragging_vertex.setX(event.pos().x())
+        self._dragging_vertex.setY(event.pos().y())
 
         self.redraw_canvas()
 
@@ -380,10 +574,10 @@ class Canvas(QLabel):
         self.clear_canvas()
 
         canvas = self.pixmap()
-        painter: QPainter = Canvas.construct_painter(self._polygon.get_color(), canvas)
+        painter: QPainter = Canvas.construct_painter(self._polygon.color, canvas)
 
         previous_vertex: QPoint | None = None
-        for vertex in self._polygon.peek_vertexes():
+        for vertex in self._polygon:
             painter.drawEllipse(vertex, 2, 2)
 
             if previous_vertex is not None:
@@ -392,59 +586,46 @@ class Canvas(QLabel):
             previous_vertex = vertex
 
         if self._polygon.is_closed():
-            painter.drawLine(previous_vertex, self._polygon.peek_vertexes()[0])
+            painter.drawLine(self._polygon.last_vertex, self._polygon.first_vertex)
 
         painter.end()
         self.setPixmap(canvas)
 
     def place_point(self, point: QPoint, painter: QPainter) -> None:
-        if self._polygon.vertex_count() > 0 and self._polygon.intersects(
-            point, self._polygon.peek_vertex(-1)
-        ):
+        try:
+            self._polygon.add_vertex(point)
+        except SelfIntersectionException:
             Dialog(
                 "Проверка на самопересечения",
                 "Точка, которую Вы хотите поставить, приведёт к самопересечению многоугольника.",
             ).exec()
+        else:
+            painter.drawEllipse(point, 2, 2)
 
-            return
-
-        painter.drawEllipse(point, 2, 2)
-
-        if self._polygon.vertex_count() > 0:
-            painter.drawLine(self._polygon.peek_last_vertex(), point)
-
-        self._polygon.add_vertex(point)
+            previous_half_edge: HalfEdge = self._polygon.last_vertex.half_edge.previous
+            if previous_half_edge is not None:
+                painter.drawLine(self._polygon.last_vertex.half_edge.previous.origin, self._polygon.last_vertex)
 
     def close_polygon(self, painter: QPainter) -> None:
-        if self._polygon.vertex_count() < 4:
-            Dialog(
-                message="Недостаточно точек для закрытия полигона. Их должно быть не менее 4."
-            ).exec()
-
-            return
-
-        if self._polygon.is_closed():
+        try:
+            self._polygon.close()
+        except PolygonClosedException:
             Dialog(
                 "Полигон закрыт",
                 "Невозможно закрыть полигон: полигон уже закрыт!",
             ).exec()
-
-            return
-
-        if self._polygon.intersects(
-            self._polygon.peek_last_vertex(), self._polygon.peek_vertex(0)
-        ):
+        except SelfIntersectionException:
             Dialog(
                 "Проверка на самопересечения",
                 "Закрытие полигона сейчас приведёт к самопересечению. "
                 "Измените геометрию полигона и повторите попытку.",
             ).exec()
-
-            return
-
-        painter.drawLine(self._polygon.peek_last_vertex(), self._polygon.peek_vertex(0))
-
-        self._polygon.close()
+        except NotEnoughVertexesException:
+            Dialog(
+                message="Недостаточно точек для закрытия полигона. Их должно быть не менее 4."
+            ).exec()
+        else:
+            painter.drawLine(self._polygon.last_vertex, self._polygon.first_vertex)
 
     def set_dragging_vertex(self, vertex: QPoint) -> None:
         self._dragging_vertex = vertex
@@ -473,7 +654,7 @@ class Canvas(QLabel):
             painter_.end()
             self.setPixmap(canvas_)
 
-        for vertex in self._polygon.peek_vertexes():
+        for vertex in self._polygon:
             match vertex.type_:
                 case VertexType.START:
                     place_point(QColor("yellow"), vertex)
@@ -504,6 +685,27 @@ class Canvas(QLabel):
         painter.setBrush(QBrush(color, Qt.BrushStyle.SolidPattern))
 
         return painter
+
+
+class Dialog(QDialog):
+    def __init__(self, title: str = "Ошибка", message: str = "Непредвиденная ошибка!"):
+        super().__init__()
+
+        self.setWindowTitle(title)
+
+        button = QDialogButtonBox.StandardButton.Ok
+
+        self.buttonBox = QDialogButtonBox(button)
+        self.buttonBox.accepted.connect(self.accept)  # noqa
+
+        self.layout = QVBoxLayout()
+
+        message = QLabel(message)
+        message.setStyleSheet("QLabel {font-size: 16pt; margin: auto;}")
+
+        self.layout.addWidget(message)
+        self.layout.addWidget(self.buttonBox)
+        self.setLayout(self.layout)
 
 
 class InfoDialog(QDialog):

@@ -4,7 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="1f8cd0da-ca49-473f-8150-db68623c02d3" name="Changes" comment="✨ Реализован класс Polygon&#10;* все действия с математикой полигона перенесены в него;&#10;* в классе Canvas осталась лишь реализация отрисовки полигона." />
+    <list default="true" id="1f8cd0da-ca49-473f-8150-db68623c02d3" name="Changes" comment="✨ Реализован класс Polygon&#10;* все действия с математикой полигона перенесены в него;&#10;* в классе Canvas осталась лишь реализация отрисовки полигона.">
+      <change beforePath="$PROJECT_DIR$/.idea/discord.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cutting.py" beforeDir="false" afterPath="$PROJECT_DIR$/cutting.py" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -36,6 +40,7 @@
     "Python.polygons.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "master",
+    "ignore.virus.scanning.warn.message": "true",
     "settings.editor.selected.configurable": "editing.templates"
   }
 }]]></component>
@@ -93,8 +98,8 @@
       <method v="2" />
     </configuration>
     <list>
-      <item itemvalue="Python.cutting" />
       <item itemvalue="Python.circles" />
+      <item itemvalue="Python.cutting" />
     </list>
   </component>
   <component name="SharedIndexes">
