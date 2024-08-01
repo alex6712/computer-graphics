@@ -656,7 +656,7 @@ class Canvas(QLabel):
             ).exec()
         else:
             for vertex in self._polygon.iter_vertexes():
-                match vertex.type_:  # noqa
+                match vertex.type_:
                     case VertexType.START:
                         place_point(QColor("yellow"), vertex)
                     case VertexType.END:
