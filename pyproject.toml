@@ -6,12 +6,13 @@ authors = ["alex6712 <alexeivanyukov@yandex.ru>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = ">=3.12,<3.13"
 PyQt6 = "^6.7.1"
 shapely = "^2.0.5"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4.2"
+pyinstaller = "^6.9.0"
 
 [build-system]
 requires = ["poetry-core"]

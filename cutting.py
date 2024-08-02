@@ -8,7 +8,6 @@ from PyQt6.QtGui import (
     QBrush,
     QColor,
     QMouseEvent,
-    QPaintDevice,
     QPainter,
     QPen,
     QPixmap,
@@ -59,6 +58,13 @@ class Vector2D:
     def cross_product(self, other: "Vector2D") -> float:
         return self.x * other.y - self.y * other.x
 
+    @staticmethod
+    def from_points(start: QPoint, end: QPoint) -> "Vector2D":
+        return Vector2D(
+            end.x() - start.x(),
+            end.y() - start.y(),
+        )
+
     def __repr__(self) -> str:
         return f"Vector <x: {self._x}, y: {self._y}>"
 
@@ -83,10 +89,18 @@ class VertexType(Enum):
 
 
 class Vertex(QPoint):
-    def __init__(self, half_edge: "HalfEdge" = None, *args, **kwargs) -> None:
+    def __init__(self, index: int, half_edge: "HalfEdge" = None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+        self._index: int = index
+
         self._half_edge: HalfEdge | None = half_edge
+
+        self._type: VertexType | None = None
+
+    @property
+    def index(self) -> int:
+        return self._index
 
     @property
     def half_edge(self) -> "HalfEdge":
@@ -96,6 +110,14 @@ class Vertex(QPoint):
     def half_edge(self, half_edge: "HalfEdge") -> None:
         self._half_edge = half_edge
 
+    @property
+    def type(self) -> VertexType | None:
+        return self._type
+
+    @type.setter
+    def type(self, type_: VertexType | None) -> None:
+        self._type = type_
+
     def to_tuple(self) -> tuple[int, int]:
         return self.x(), self.y()
 
@@ -103,8 +125,8 @@ class Vertex(QPoint):
         return f"{self.to_tuple()}"
 
     @staticmethod
-    def from_point(point: QPoint) -> "Vertex":
-        return Vertex(None, point)
+    def from_point(index: int, point: QPoint) -> "Vertex":
+        return Vertex(index, None, point)
 
 
 class HalfEdge:
@@ -203,6 +225,8 @@ class Polygon:
         self._closed: bool = False
         self._clockwise: bool = True
 
+        self._cuts: list[tuple[Vertex, Vertex]] = list()
+
     @property
     def color(self) -> QColor:
         return self._color
@@ -218,7 +242,7 @@ class Polygon:
         if self.is_closed():
             raise PolygonClosedException()
 
-        new_vertex: Vertex = Vertex.from_point(point)
+        new_vertex: Vertex = Vertex.from_point(self._vertex_count, point)
 
         if self._last_vertex is not None and self.intersects(
             LineString([self._last_vertex.to_tuple(), new_vertex.to_tuple()])
@@ -283,6 +307,9 @@ class Polygon:
 
             current_vertex = current_vertex.half_edge.next.origin
 
+    def peek_cuts(self) -> list[tuple[Vertex, Vertex]]:
+        return self._cuts.copy()
+
     def close(self) -> None:
         if self.is_closed():
             raise PolygonClosedException()
@@ -311,6 +338,24 @@ class Polygon:
         first_half_edge_twin.next = last_half_edge_twin
 
         self._closed = True
+
+        highest_vertex: Vertex = sorted(
+            self.iter_vertexes(),
+            key=lambda _vertex: (_vertex.y(), _vertex.x()),
+        )[0]
+
+        next_vertex: Vertex = highest_vertex.half_edge.next.origin
+        previous_vertex: Vertex = highest_vertex.half_edge.previous.origin
+
+        vector_to_next: Vector2D = Vector2D.from_points(
+            highest_vertex, next_vertex
+        )
+        vector_to_previous: Vector2D = Vector2D.from_points(
+            highest_vertex, previous_vertex
+        )
+
+        if left_turn(vector_to_next, vector_to_previous) == 1:
+            self._clockwise = False
 
     def is_closed(self) -> bool:
         return self._closed
@@ -351,63 +396,77 @@ class Polygon:
         if not self.is_closed():
             raise PolygonIsNotClosedException()
 
-        vertex_queue: list[Vertex] = sorted(
-            self.iter_vertexes(),
-            key=lambda _vertex: (_vertex.y(), _vertex.x()),
-        )
+        self._cuts.clear()
 
-        first_vertex: Vertex = vertex_queue.pop(0)
-        if self._type_of_vertex(first_vertex) is VertexType.SPLIT:
-            self._clockwise = False
+        polygon: Polygon = Polygon()
 
-        first_vertex.type_ = VertexType.START
+        for _vertex in self.iter_vertexes():
+            polygon.add_vertex(_vertex)
 
-        while len(vertex_queue) > 0:
-            current_vertex: Vertex = vertex_queue.pop(0)
+        polygon.close()
 
-            current_vertex.type_ = self._type_of_vertex(current_vertex)
+        current_vertex: Vertex = polygon._first_vertex
+        while polygon._vertex_count > 3:
+            next_vertex: Vertex = current_vertex.half_edge.next.origin
+            previous_vertex: Vertex = current_vertex.half_edge.previous.origin
 
-    def _type_of_vertex(self, current_vertex: Vertex) -> VertexType:
-        if not self.is_closed():
-            raise PolygonIsNotClosedException()
+            current_to_next: Vector2D = Vector2D.from_points(current_vertex, next_vertex)
+            current_to_previous: Vector2D = Vector2D.from_points(current_vertex, previous_vertex)
 
-        next_vertex: Vertex = current_vertex.half_edge.next.origin
-        previous_vertex: Vertex = current_vertex.half_edge.previous.origin
+            predicate: int = left_turn(current_to_next, current_to_previous)
+            if not polygon._clockwise:
+                predicate *= -1
 
-        def is_higher(v1: Vertex, v2: Vertex) -> bool:
-            if v1.y() == v2.y():
-                return v1.x() < v2.x()
-
-            return v1.y() < v2.y()
-
-        is_higher_than_right: bool = is_higher(current_vertex, next_vertex)
-        is_higher_than_left: bool = is_higher(current_vertex, previous_vertex)
-
-        vector_to_next: Vector2D = Vector2D(
-            next_vertex.x() - current_vertex.x(),
-            next_vertex.y() - current_vertex.y(),
-        )
-        vector_to_previous: Vector2D = Vector2D(
-            previous_vertex.x() - current_vertex.x(),
-            previous_vertex.y() - current_vertex.y(),
-        )
-
-        predicate: int = left_turn(vector_to_next, vector_to_previous)
-        if not self._clockwise:
-            predicate *= -1
-
-        if is_higher_than_right and is_higher_than_left:
             if predicate == 1:
-                return VertexType.SPLIT
-            else:
-                return VertexType.START
-        elif not (is_higher_than_right or is_higher_than_left):
-            if predicate == 1:
-                return VertexType.MERGE
-            else:
-                return VertexType.END
+                current_vertex = next_vertex
+                continue
 
-        return VertexType.REGULAR
+            next_to_previous: Vector2D = Vector2D.from_points(next_vertex, previous_vertex)
+            previous_to_current: Vector2D = Vector2D.from_points(previous_vertex, current_vertex)
+
+            for random_vertex in polygon.iter_vertexes():
+                if random_vertex in (previous_vertex, current_vertex, next_vertex):
+                    continue
+
+                random_to_current: Vector2D = Vector2D.from_points(random_vertex, current_vertex)
+                random_to_next: Vector2D = Vector2D.from_points(random_vertex, next_vertex)
+                random_to_previous: Vector2D = Vector2D.from_points(random_vertex, previous_vertex)
+
+                cross_products: list[float] = [
+                    random_to_current.cross_product(current_to_next),
+                    random_to_next.cross_product(next_to_previous),
+                    random_to_previous.cross_product(previous_to_current)
+                ]
+
+                if 0 in cross_products:
+                    break
+
+                if len({cross_product > 0 for cross_product in cross_products}) == 1:
+                    break
+            else:
+                polygon._vertex_count -= 1
+
+                if current_vertex is polygon._first_vertex:
+                    polygon._first_vertex = next_vertex
+
+                previous_half_edge: HalfEdge = previous_vertex.half_edge
+                next_half_edge: HalfEdge = next_vertex.half_edge
+
+                previous_half_edge.next = next_half_edge
+
+                next_half_edge.previous = previous_half_edge
+
+                previous_half_edge_twin: HalfEdge = previous_half_edge.twin
+                next_half_edge_twin: HalfEdge = next_half_edge.twin
+
+                previous_half_edge_twin.origin = next_vertex
+                previous_half_edge_twin.previous = next_half_edge_twin
+
+                next_half_edge_twin.next = previous_half_edge_twin
+
+                self._cuts.append((previous_vertex, next_vertex))
+
+            current_vertex = next_vertex
 
     @staticmethod
     def random_polygon() -> "Polygon":
@@ -492,6 +551,12 @@ class Canvas(QLabel):
         _canvas: QPixmap = QPixmap(*Canvas._size)
         _canvas.fill(QColor(*Canvas._background_color))
 
+        self._info_canvas: QPixmap = QPixmap(*Canvas._size)
+        self._info_canvas.fill(QColor(0, 0, 0, 0))
+
+        self._polygon_canvas: QPixmap = QPixmap(*Canvas._size)
+        self._polygon_canvas.fill(QColor(0, 0, 0, 0))
+
         self.setPixmap(_canvas)
 
         self.place_grid()
@@ -520,14 +585,20 @@ class Canvas(QLabel):
     def replace_polygon(self, new_polygon: Polygon) -> None:
         self._polygon = new_polygon
 
+        if self._polygon.is_closed():
+            self._try_triangulate_polygon()
+
+        self._update_polygon_canvas()
+
         self.redraw_canvas()
 
-        if self._polygon.is_closed():
-            self.triangulate_polygon()
-
     def place_grid(self, grid_step: int = 30) -> None:
-        canvas = self.pixmap()
-        painter = Canvas.construct_painter(QColor(100, 100, 100, alpha=40), canvas, 2)
+        canvas: QPixmap = self.pixmap()
+        painter: QPainter = QPainter(canvas)
+
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(QPen(QColor(100, 100, 100, 40), 2, Qt.PenStyle.SolidLine))
+        painter.setBrush(QBrush(QColor(100, 100, 100, 40), Qt.BrushStyle.SolidPattern))
 
         for i in range(grid_step, Canvas._size[1], grid_step):
             painter.drawLine(QPoint(0, i), QPoint(Canvas._size[0], i))
@@ -539,9 +610,6 @@ class Canvas(QLabel):
         self.setPixmap(canvas)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
-        canvas: QPixmap = self.pixmap()
-        painter: QPainter = Canvas.construct_painter(self._polygon.color, canvas)
-
         def is_close(p: QPoint, q: QPoint, r: float) -> bool:
             d: QPoint = p - q
 
@@ -556,17 +624,22 @@ class Canvas(QLabel):
                     break
 
             if closest_vertex is not None:
-                self.set_dragging_vertex(closest_vertex)
+                self._dragging_vertex = closest_vertex
+
+                self._update_info_canvas()
             else:
-                self.place_point(QPoint(event.pos()), painter)
+                self._try_add_vertex(QPoint(event.pos()))
+
+                self._update_polygon_canvas()
         elif event.button() == Qt.MouseButton.RightButton:
-            self.close_polygon(painter)
+            self._try_close_polygon()
 
-        painter.end()
-        self.setPixmap(canvas)
+            if self._polygon.is_closed():
+                self._try_triangulate_polygon()
 
-        if self._polygon.is_closed():
-            self.triangulate_polygon()
+            self._update_polygon_canvas()
+
+        self.redraw_canvas()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         self._mouse_pos = event.pos()
@@ -575,71 +648,29 @@ class Canvas(QLabel):
             self._dragging_vertex.setX(event.pos().x())
             self._dragging_vertex.setY(event.pos().y())
 
-        self.redraw_canvas()
+            self._update_polygon_canvas()
 
-        if self._triangulate_permanent and self._polygon.is_closed():
-            self.triangulate_polygon()
+        self._update_info_canvas()
+
+        if self.triangulate_permanent and self._polygon.is_closed():
+            self._try_triangulate_polygon()
+
+        self.redraw_canvas()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         if self._dragging_vertex is not None:
             self._dragging_vertex = None
 
+            self._update_info_canvas()
+
+            if not self.triangulate_permanent and self._polygon.is_closed():
+                self._try_triangulate_polygon()
+
+            self._update_polygon_canvas()
+
         self.redraw_canvas()
 
-        if self._polygon.is_closed():
-            self.triangulate_polygon()
-
-    def redraw_canvas(self) -> None:
-        self.clear_canvas()
-
-        canvas = self.pixmap()
-        painter: QPainter = QPainter(canvas)
-
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        painter.setPen(QPen(QColor(self._polygon.color), 4, Qt.PenStyle.SolidLine))
-        painter.setBrush(QBrush(QColor(self._polygon.color), Qt.BrushStyle.SolidPattern))
-
-        previous_vertex: QPoint | None = None
-        for vertex in self._polygon.iter_vertexes():
-            painter.drawEllipse(vertex, 2, 2)
-
-            if previous_vertex is not None:
-                painter.drawLine(previous_vertex, vertex)
-
-            previous_vertex = vertex
-
-        if self._polygon.is_closed():
-            painter.drawLine(self._polygon.last_vertex, self._polygon.first_vertex)
-
-        if self._mouse_pos is not None:
-            painter.setPen(QPen(QColor(255, 255, 255, 127), 4, Qt.PenStyle.SolidLine))
-            painter.setBrush(QBrush(QColor(255, 255, 255, 127), Qt.BrushStyle.SolidPattern))
-
-            font: QFont = QFont()
-            font.setPointSize(12)
-            painter.setFont(font)
-
-            painter.drawText(self._mouse_pos + QPoint(20, 20), f"({self._mouse_pos.x()}; {self._mouse_pos.y()})")
-
-        if self._dragging_vertex is not None:
-            painter.setPen(QPen(QColor(255, 255, 255, 127), 2, Qt.PenStyle.DashDotDotLine))
-            painter.setBrush(QBrush(QColor(255, 255, 255, 127), Qt.BrushStyle.SolidPattern))
-
-            painter.drawLine(
-                QPoint(self._dragging_vertex.x(), 0),
-                QPoint(self._dragging_vertex.x(), Canvas._size[1])
-            )
-
-            painter.drawLine(
-                QPoint(0, self._dragging_vertex.y()),
-                QPoint(Canvas._size[0], self._dragging_vertex.y())
-            )
-
-        painter.end()
-        self.setPixmap(canvas)
-
-    def place_point(self, point: QPoint, painter: QPainter) -> None:
+    def _try_add_vertex(self, point: QPoint) -> None:
         try:
             self._polygon.add_vertex(point)
         except PolygonClosedException:
@@ -652,17 +683,8 @@ class Canvas(QLabel):
                 "Проверка на самопересечения",
                 "Точка, которую Вы хотите поставить, приведёт к самопересечению многоугольника.",
             ).exec()
-        else:
-            painter.drawEllipse(point, 2, 2)
 
-            previous_half_edge: HalfEdge = self._polygon.last_vertex.half_edge.previous
-            if previous_half_edge is not None:
-                painter.drawLine(
-                    self._polygon.last_vertex.half_edge.previous.origin,
-                    self._polygon.last_vertex,
-                )
-
-    def close_polygon(self, painter: QPainter) -> None:
+    def _try_close_polygon(self) -> None:
         try:
             self._polygon.close()
         except PolygonClosedException:
@@ -680,13 +702,8 @@ class Canvas(QLabel):
             Dialog(
                 message="Недостаточно точек для закрытия полигона. Их должно быть не менее 4."
             ).exec()
-        else:
-            painter.drawLine(self._polygon.last_vertex, self._polygon.first_vertex)
 
-    def set_dragging_vertex(self, vertex: QPoint) -> None:
-        self._dragging_vertex = vertex
-
-    def triangulate_polygon(self) -> None:
+    def _try_triangulate_polygon(self) -> None:
         try:
             self._polygon.triangulate()
         except PolygonIsNotClosedException:
@@ -694,34 +711,104 @@ class Canvas(QLabel):
                 "Полигон не закрыт",
                 "Полигон не закрыт: невозможно запустить триангуляцию.\nЗакройте полигон и попробуйте снова.",
             ).exec()
-        else:
-            canvas: QPixmap = self.pixmap()
-            painter: QPainter = QPainter(canvas)
 
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    def redraw_canvas(self) -> None:
+        self.clear_canvas()
 
-            width: int = 10
+        canvas = self.pixmap()
+        painter: QPainter = QPainter(canvas)
 
-            for vertex in self._polygon.iter_vertexes():
-                color: str = "black"
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-                match vertex.type_:  # noqa
-                    case VertexType.START:
-                        color = "yellow"
-                    case VertexType.END:
-                        color = "green"
-                    case VertexType.SPLIT:
-                        color = "red"
-                    case VertexType.MERGE:
-                        color = "blue"
+        painter.drawPixmap(0, 0, self._polygon_canvas)
+        painter.drawPixmap(0, 0, self._info_canvas)
 
-                painter.setPen(QPen(QColor(color), width, Qt.PenStyle.SolidLine))
-                painter.setBrush(QBrush(QColor(color), Qt.BrushStyle.SolidPattern))
+        painter.end()
+        self.setPixmap(canvas)
 
-                painter.drawPoint(vertex)
+    def _update_info_canvas(self) -> None:
+        self._info_canvas.fill(QColor(0, 0, 0, 0))
 
-            painter.end()
-            self.setPixmap(canvas)
+        info_canvas_painter: QPainter = QPainter(self._info_canvas)
+
+        info_canvas_painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        if self._mouse_pos is not None:
+            info_canvas_painter.setPen(
+                QPen(QColor(255, 255, 255, 127), 4, Qt.PenStyle.SolidLine)
+            )
+            info_canvas_painter.setBrush(
+                QBrush(QColor(255, 255, 255, 127), Qt.BrushStyle.SolidPattern)
+            )
+
+            font: QFont = QFont()
+            font.setPointSize(12)
+            info_canvas_painter.setFont(font)
+
+            info_canvas_painter.drawText(
+                self._mouse_pos + QPoint(20, 20),
+                f"({self._mouse_pos.x()}; {self._mouse_pos.y()})",
+            )
+
+        if self._dragging_vertex is not None:
+            info_canvas_painter.setPen(
+                QPen(QColor(255, 255, 255, 127), 2, Qt.PenStyle.DashDotDotLine)
+            )
+            info_canvas_painter.setBrush(
+                QBrush(QColor(255, 255, 255, 127), Qt.BrushStyle.SolidPattern)
+            )
+
+            info_canvas_painter.drawLine(
+                QPoint(self._dragging_vertex.x(), 0),
+                QPoint(self._dragging_vertex.x(), Canvas._size[1]),
+            )
+
+            info_canvas_painter.drawLine(
+                QPoint(0, self._dragging_vertex.y()),
+                QPoint(Canvas._size[0], self._dragging_vertex.y()),
+            )
+
+        info_canvas_painter.end()
+
+    def _update_polygon_canvas(self) -> None:
+        self._polygon_canvas.fill(QColor(0, 0, 0, 0))
+
+        polygon_canvas_painter: QPainter = QPainter(self._polygon_canvas)
+
+        polygon_canvas_painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        polygon_canvas_painter.setPen(
+            QPen(QColor(self._polygon.color), 4, Qt.PenStyle.SolidLine)
+        )
+        polygon_canvas_painter.setBrush(
+            QBrush(QColor(self._polygon.color), Qt.BrushStyle.SolidPattern)
+        )
+
+        previous_vertex: Vertex | None = None
+        for vertex in self._polygon.iter_vertexes():
+            polygon_canvas_painter.drawEllipse(vertex, 2, 2)
+
+            if previous_vertex is not None:
+                polygon_canvas_painter.drawLine(previous_vertex, vertex)
+
+            previous_vertex = vertex
+
+        if self._polygon.is_closed():
+            polygon_canvas_painter.drawLine(
+                self._polygon.last_vertex, self._polygon.first_vertex
+            )
+
+        if self._dragging_vertex is None or self.triangulate_permanent:
+            polygon_canvas_painter.setPen(
+                QPen(QColor("red"), 4, Qt.PenStyle.SolidLine)
+            )
+            polygon_canvas_painter.setBrush(
+                QBrush(QColor("red"), Qt.BrushStyle.SolidPattern)
+            )
+
+            for cut in self._polygon.peek_cuts():
+                polygon_canvas_painter.drawLine(cut[0], cut[1])
+
+        polygon_canvas_painter.end()
 
     def clear_canvas(self) -> None:
         canvas = self.pixmap()
@@ -730,27 +817,23 @@ class Canvas(QLabel):
 
         self.place_grid()
 
-    @staticmethod
-    def construct_painter(
-            color: QColor, paint_device: QPaintDevice, width: int = 4, pen_style: Qt.PenStyle = Qt.PenStyle.SolidLine
-    ) -> QPainter:
-        painter = QPainter(paint_device)
-
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setPen(QPen(color, width, pen_style))
-        painter.setBrush(QBrush(color, Qt.BrushStyle.SolidPattern))
-
-        return painter
-
 
 class Dialog(QDialog):
-    def __init__(self, title: str = "Ошибка", message: str = "Непредвиденная ошибка!", with_cancel: bool = False):
+    def __init__(
+            self,
+            title: str = "Ошибка",
+            message: str = "Непредвиденная ошибка!",
+            with_cancel: bool = False,
+    ):
         super().__init__()
 
         self.setWindowTitle(title)
 
         if with_cancel:
-            button = QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+            button = (
+                    QDialogButtonBox.StandardButton.Ok
+                    | QDialogButtonBox.StandardButton.Cancel
+            )
         else:
             button = QDialogButtonBox.StandardButton.Ok
 
