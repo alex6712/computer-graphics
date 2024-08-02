@@ -89,7 +89,9 @@ class VertexType(Enum):
 
 
 class Vertex(QPoint):
-    def __init__(self, index: int, half_edge: "HalfEdge" = None, *args, **kwargs) -> None:
+    def __init__(
+            self, index: int, half_edge: "HalfEdge" = None, *args, **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         self._index: int = index
@@ -347,9 +349,7 @@ class Polygon:
         next_vertex: Vertex = highest_vertex.half_edge.next.origin
         previous_vertex: Vertex = highest_vertex.half_edge.previous.origin
 
-        vector_to_next: Vector2D = Vector2D.from_points(
-            highest_vertex, next_vertex
-        )
+        vector_to_next: Vector2D = Vector2D.from_points(highest_vertex, next_vertex)
         vector_to_previous: Vector2D = Vector2D.from_points(
             highest_vertex, previous_vertex
         )
@@ -410,8 +410,12 @@ class Polygon:
             next_vertex: Vertex = current_vertex.half_edge.next.origin
             previous_vertex: Vertex = current_vertex.half_edge.previous.origin
 
-            current_to_next: Vector2D = Vector2D.from_points(current_vertex, next_vertex)
-            current_to_previous: Vector2D = Vector2D.from_points(current_vertex, previous_vertex)
+            current_to_next: Vector2D = Vector2D.from_points(
+                current_vertex, next_vertex
+            )
+            current_to_previous: Vector2D = Vector2D.from_points(
+                current_vertex, previous_vertex
+            )
 
             predicate: int = left_turn(current_to_next, current_to_previous)
             if not polygon._clockwise:
@@ -421,21 +425,31 @@ class Polygon:
                 current_vertex = next_vertex
                 continue
 
-            next_to_previous: Vector2D = Vector2D.from_points(next_vertex, previous_vertex)
-            previous_to_current: Vector2D = Vector2D.from_points(previous_vertex, current_vertex)
+            next_to_previous: Vector2D = Vector2D.from_points(
+                next_vertex, previous_vertex
+            )
+            previous_to_current: Vector2D = Vector2D.from_points(
+                previous_vertex, current_vertex
+            )
 
             for random_vertex in polygon.iter_vertexes():
                 if random_vertex in (previous_vertex, current_vertex, next_vertex):
                     continue
 
-                random_to_current: Vector2D = Vector2D.from_points(random_vertex, current_vertex)
-                random_to_next: Vector2D = Vector2D.from_points(random_vertex, next_vertex)
-                random_to_previous: Vector2D = Vector2D.from_points(random_vertex, previous_vertex)
+                random_to_current: Vector2D = Vector2D.from_points(
+                    random_vertex, current_vertex
+                )
+                random_to_next: Vector2D = Vector2D.from_points(
+                    random_vertex, next_vertex
+                )
+                random_to_previous: Vector2D = Vector2D.from_points(
+                    random_vertex, previous_vertex
+                )
 
                 cross_products: list[float] = [
                     random_to_current.cross_product(current_to_next),
                     random_to_next.cross_product(next_to_previous),
-                    random_to_previous.cross_product(previous_to_current)
+                    random_to_previous.cross_product(previous_to_current),
                 ]
 
                 if 0 in cross_products:
@@ -798,9 +812,7 @@ class Canvas(QLabel):
             )
 
         if self._dragging_vertex is None or self.triangulate_permanent:
-            polygon_canvas_painter.setPen(
-                QPen(QColor("red"), 4, Qt.PenStyle.SolidLine)
-            )
+            polygon_canvas_painter.setPen(QPen(QColor("red"), 4, Qt.PenStyle.SolidLine))
             polygon_canvas_painter.setBrush(
                 QBrush(QColor("red"), Qt.BrushStyle.SolidPattern)
             )
